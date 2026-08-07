@@ -65,6 +65,12 @@ impl MetadataStore {
                 signature TEXT NOT NULL,
                 key_id TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )",
+            "CREATE TABLE IF NOT EXISTS vector_embeddings (
+                id TEXT PRIMARY KEY,
+                entity_label TEXT NOT NULL,
+                embedding_vector TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )"
         ];
 
@@ -263,5 +269,53 @@ impl MetadataStore {
             }
         }
         Ok(runs)
+    }
+
+    pub fn get_pipeline_performance_metrics(&self) -> Result<(usize, usize, usize, usize), StorageError> {
+        let conn = self.conn.lock().map_err(|e| StorageError::Lock(e.to_string()))?;
+        
+        let total_runs = conn.query("SELECT COUNT(*) FROM runs", ())
+            .map_err(|e| StorageError::Db(e.to_string()))?
+            .into_iter()
+            .next()
+            .and_then(|r| r.ok())
+            .and_then(|r| r.get::<i64>(0).ok())
+            .unwrap_or(0) as usize;
+
+        let total_jobs = conn.query("SELECT COUNT(*) FROM jobs", ())
+            .map_err(|e| StorageError::Db(e.to_string()))?
+            .into_iter()
+            .next()
+            .and_then(|r| r.ok())
+            .and_then(|r| r.get::<i64>(0).ok())
+            .unwrap_or(0) as usize;
+
+        let total_logs = conn.query("SELECT COUNT(*) FROM logs", ())
+            .map_err(|e| StorageError::Db(e.to_string()))?
+            .into_iter()
+            .next()
+            .and_then(|r| r.ok())
+            .and_then(|r| r.get::<i64>(0).ok())
+            .unwrap_or(0) as usize;
+
+        let cache_hits = conn.query("SELECT COUNT(*) FROM cache_entries", ())
+            .map_err(|e| StorageError::Db(e.to_string()))?
+            .into_iter()
+            .next()
+            .and_then(|r| r.ok())
+            .and_then(|r| r.get::<i64>(0).ok())
+            .unwrap_or(0) as usize;
+
+        Ok((total_runs, total_jobs, total_logs, cache_hits))
+    }
+
+    pub fn store_vector_embedding(&self, id: &str, label: &str, vector: &[f32]) -> Result<(), StorageError> {
+        let vec_str = serde_json::to_string(vector).map_err(|e| StorageError::Serialize(e.to_string()))?;
+        let conn = self.conn.lock().map_err(|e| StorageError::Lock(e.to_string()))?;
+        conn.execute(
+            "INSERT OR REPLACE INTO vector_embeddings (id, entity_label, embedding_vector) VALUES ($1, $2, $3)",
+            (id.to_string(), label.to_string(), vec_str),
+        ).map_err(|e| StorageError::Db(e.to_string()))?;
+        Ok(())
     }
 }

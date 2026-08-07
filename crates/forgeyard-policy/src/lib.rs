@@ -81,6 +81,21 @@ impl Policy for SecurityPolicy {
             });
         }
 
+        // Rule 3: Secret exposure inspection
+        if full_command.contains("printenv") || full_command.contains("env ") || full_command.contains("echo $") {
+            findings.push(PolicyFinding {
+                rule: "secret_exposure_guard".to_string(),
+                status: PolicyFindingStatus::Warning,
+                message: "Potential environment variable or secret printing detected in command string".to_string(),
+            });
+        } else {
+            findings.push(PolicyFinding {
+                rule: "secret_exposure_guard".to_string(),
+                status: PolicyFindingStatus::Pass,
+                message: "No suspicious environment print statements detected".to_string(),
+            });
+        }
+
         findings
     }
 }

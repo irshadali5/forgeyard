@@ -14,4 +14,22 @@ pub mod graph {
 
         Ok(results)
     }
+
+    pub fn generate_token_efficient_summary(result: &ExtractionResult) -> String {
+        let mut summary = String::new();
+        summary.push_str("### Codebase Knowledge Graph Summary\n");
+        summary.push_str(&format!("- Total Entities/Nodes: {}\n", result.nodes.len()));
+        summary.push_str(&format!("- Total Dependencies/Edges: {}\n", result.edges.len()));
+        summary.push_str("\n#### Primary Entities & Modules:\n");
+        
+        for node in result.nodes.iter().take(25) {
+            summary.push_str(&format!("- [`{}`] ({:?}) in `{}`\n", node.label, node.node_type, node.source_file));
+        }
+        
+        if result.nodes.len() > 25 {
+            summary.push_str(&format!("... and {} more entities.\n", result.nodes.len() - 25));
+        }
+
+        summary
+    }
 }
