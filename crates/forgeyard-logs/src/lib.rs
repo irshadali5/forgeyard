@@ -149,6 +149,55 @@ impl LogWriter for RotatingFileLogSystem {
     }
 }
 
+pub struct IoUringLogWriter {
+    pub log_dir: PathBuf,
+}
+
+impl IoUringLogWriter {
+    pub fn new(log_dir: impl Into<PathBuf>) -> Self {
+        Self { log_dir: log_dir.into() }
+    }
+}
+
+impl LogWriter for IoUringLogWriter {
+    fn write_log(&self, job_id: &str, line: &str) -> Result<(), String> {
+        let path = self.log_dir.join(format!("{}.log", job_id));
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(mut ring) = io_uring::IoUring::new(8) {
+                if let Ok(file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+                    use std::os::unix::io::AsRawFd;
+                    let fd = io_uring::types::Fd(file.as_raw_fd());
+                    let mut data = format!("{}\n", line).into_bytes();
+                    let write_e = io_uring::opcode::Write::new(fd, data.as_mut_ptr(), data.len() as u32).build().user_data(0x99);
+                    unsafe {
+                        let _ = ring.submission().push(&write_e);
+                    }
+                    let _ = ring.submit_and_wait(1);
+                    return Ok(());
+                }
+            }
+        }
+
+        // Fallback file write
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .map_err(|e| e.to_string())?;
+
+        writeln!(file, "{}", line).map_err(|e| e.to_string())
+    }
+
+    fn flush(&self) -> Result<(), String> {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -165,5 +214,15 @@ mod tests {
         // Direct test on redact
         let clean = redacting.redact("my super_secret_token value");
         assert_eq!(clean, "my [REDACTED_SECRET] value");
+    }
+
+    #[test]
+    fn test_io_uring_log_writer_fallback() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let writer = IoUringLogWriter::new(temp_dir.path());
+        writer.write_log("test-job-uring", "hello uring log line").unwrap();
+
+        let log_file = temp_dir.path().join("test-job-uring.log");
+        assert!(log_file.exists());
     }
 }

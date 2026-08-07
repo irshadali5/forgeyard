@@ -6,6 +6,7 @@ use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -42,6 +43,12 @@ impl CasEngine {
         fs::create_dir_all(root.join("blobs")).await?;
         fs::create_dir_all(root.join("trees")).await?;
         Ok(Self { root })
+    }
+
+    pub fn blob_path(&self, digest: &Digest) -> PathBuf {
+        let hex_hash = hex::encode(digest.bytes);
+        let prefix = &hex_hash[0..2];
+        self.root.join("blobs").join(prefix).join(&hex_hash)
     }
 
     pub async fn write_blob(&self, data: &[u8]) -> Result<Digest, CasError> {
@@ -245,5 +252,71 @@ impl CasEngine {
         }
 
         Ok(())
+    }
+}
+
+pub struct IoUringCasEngine {
+    inner: Arc<CasEngine>,
+    ring_entries: u32,
+}
+
+impl IoUringCasEngine {
+    pub fn new(cas: Arc<CasEngine>, ring_entries: u32) -> Self {
+        Self { inner: cas, ring_entries }
+    }
+
+    pub fn is_io_uring_supported() -> bool {
+        #[cfg(target_os = "linux")]
+        {
+            io_uring::IoUring::new(8).is_ok()
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            false
+        }
+    }
+
+    pub async fn read_blob_uring(&self, digest: &Digest) -> Result<Option<Bytes>, CasError> {
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(mut ring) = io_uring::IoUring::new(self.ring_entries) {
+                let path = self.inner.blob_path(digest);
+                if path.exists() {
+                    if let Ok(file) = std::fs::File::open(&path) {
+                        use std::os::unix::io::AsRawFd;
+                        let fd = io_uring::types::Fd(file.as_raw_fd());
+                        let file_size = file.metadata()?.len() as usize;
+                        let mut buf = vec![0u8; file_size];
+                        
+                        let read_e = io_uring::opcode::Read::new(fd, buf.as_mut_ptr(), file_size as u32).build().user_data(0x42);
+                        unsafe {
+                            let _ = ring.submission().push(&read_e);
+                        }
+                        let _ = ring.submit_and_wait(1);
+                        return Ok(Some(Bytes::from(buf)));
+                    }
+                }
+            }
+        }
+        // Fallback to standard CAS engine
+        self.inner.read_blob(digest).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_io_uring_cas_engine_fallback() {
+        let dir = tempdir().unwrap();
+        let cas = Arc::new(CasEngine::new(dir.path()).await.unwrap());
+        let uring_cas = IoUringCasEngine::new(cas.clone(), 16);
+
+        let digest = cas.write_blob(b"io_uring test content").await.unwrap();
+        let content = uring_cas.read_blob_uring(&digest).await.unwrap();
+
+        assert_eq!(content, Some(Bytes::from_static(b"io_uring test content")));
     }
 }

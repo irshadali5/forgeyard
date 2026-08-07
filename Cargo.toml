@@ -74,4 +74,5 @@ graphify-core = "0.8.0"
 graphify-extract = "0.8.0"
 quick_cache = "0.7.0"
 redb = "2.2.1"
+io-uring = "0.6"
 
