@@ -1,4 +1,3 @@
-use forgeyard_model::JobId;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, thiserror::Error)]
@@ -85,5 +84,40 @@ impl PipelineDag {
         }
 
         Ok(sorted)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_dag_execution_order() {
+        let mut dag = PipelineDag::new();
+        dag.add_node("build".to_string());
+        dag.add_node("test".to_string());
+        dag.add_edge("build".to_string(), "test".to_string());
+
+        let mut known = HashSet::new();
+        known.insert("build".to_string());
+        known.insert("test".to_string());
+
+        let order = dag.validate(&known).expect("DAG validation failed");
+        assert_eq!(order.len(), 2);
+        assert_eq!(order[0], "build");
+        assert_eq!(order[1], "test");
+    }
+
+    #[test]
+    fn test_cycle_detection() {
+        let mut dag = PipelineDag::new();
+        dag.add_edge("A".to_string(), "B".to_string());
+        dag.add_edge("B".to_string(), "A".to_string());
+
+        let mut known = HashSet::new();
+        known.insert("A".to_string());
+        known.insert("B".to_string());
+
+        assert!(dag.validate(&known).is_err());
     }
 }

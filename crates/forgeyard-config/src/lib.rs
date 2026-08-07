@@ -1,4 +1,4 @@
-use forgeyard_model::{ExecutionSpec, Trigger};
+use forgeyard_model::Trigger;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::Path;

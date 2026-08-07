@@ -70,3 +70,23 @@ impl MatrixExpander {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_matrix_expansion_and_substitution() {
+        let matrix_def = vec![
+            "os: linux, windows".to_string(),
+            "arch: x86_64, aarch64".to_string(),
+        ];
+
+        let contexts = MatrixExpander::expand(&Some(matrix_def));
+        assert_eq!(contexts.len(), 4);
+
+        let first = &contexts[0];
+        let subbed = first.substitute("cargo build --target ${arch}-${os}");
+        assert!(subbed.contains("x86_64") || subbed.contains("aarch64"));
+    }
+}
