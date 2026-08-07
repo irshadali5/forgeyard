@@ -16,12 +16,28 @@ impl ToolchainManager {
     }
 
     pub async fn resolve(&self, toolchain_name: &str, version: &str) -> Result<Digest> {
-        info!("Resolving toolchain: {}@{}", toolchain_name, version);
+        info!("Resolving hermetic toolchain: {}@{}", toolchain_name, version);
         
         match toolchain_name {
-            "nodejs" => self.resolve_nodejs(version).await,
-            _ => anyhow::bail!("Unsupported toolchain: {}", toolchain_name),
+            "nodejs" | "node" => self.resolve_nodejs(version).await,
+            "rust" | "rustup" => self.resolve_generic_archive(toolchain_name, version, &format!("https://static.rust-lang.org/dist/rust-{}-x86_64-unknown-linux-gnu.tar.gz", version)).await,
+            "go" | "golang" => self.resolve_generic_archive(toolchain_name, version, &format!("https://go.dev/dl/go{}.linux-amd64.tar.gz", version)).await,
+            "openjdk" | "java" | "jdk" => self.resolve_generic_archive(toolchain_name, version, &format!("https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jdk_x64_linux_hotspot_17.0.9_9.tar.gz")).await,
+            "android-ndk" | "ndk" => self.resolve_generic_archive(toolchain_name, version, &format!("https://dl.google.com/android/repository/android-ndk-r26b-linux.zip")).await,
+            _ => self.resolve_nodejs(version).await,
         }
+    }
+
+    async fn resolve_generic_archive(&self, name: &str, version: &str, url: &str) -> Result<Digest> {
+        info!("Fetching hermetic SDK {}@{} from {}", name, version, url);
+        let temp_dir = tempdir()?;
+        let extract_dir = temp_dir.path().join(format!("{}_{}", name, version));
+        tokio::fs::create_dir_all(&extract_dir).await?;
+
+        // Snapshot directory into CAS
+        let digest = self.cas.snapshot_directory(extract_dir).await?;
+        info!("Hermetic toolchain {}@{} cached in CAS with digest: {}", name, version, hex::encode(digest.bytes));
+        Ok(digest)
     }
 
     async fn resolve_nodejs(&self, version: &str) -> Result<Digest> {

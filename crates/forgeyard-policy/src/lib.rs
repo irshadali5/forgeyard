@@ -192,6 +192,83 @@ impl VulnerabilityPolicy {
     }
 }
 
+pub struct CargoAuditScanner;
+
+impl CargoAuditScanner {
+    pub fn parse_output(target: &str, cargo_audit_json: &str) -> VulnerabilityReport {
+        let mut vulnerabilities = Vec::new();
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(cargo_audit_json) {
+            if let Some(vulnerabilities_arr) = value.get("vulnerabilities").and_then(|v| v.get("list")).and_then(|v| v.as_array()) {
+                for item in vulnerabilities_arr {
+                    let id = item.get("advisory").and_then(|a| a.get("id")).and_then(|s| s.as_str()).unwrap_or("CVE-UNKNOWN").to_string();
+                    let package_name = item.get("package").and_then(|p| p.get("name")).and_then(|s| s.as_str()).unwrap_or("unknown").to_string();
+                    let installed_version = item.get("package").and_then(|p| p.get("version")).and_then(|s| s.as_str()).unwrap_or("0.0.0").to_string();
+
+                    vulnerabilities.push(VulnerabilityItem {
+                        id,
+                        package_name,
+                        installed_version,
+                        fixed_version: None,
+                        severity: SeverityLevel::High,
+                        description: "cargo-audit advisory finding".to_string(),
+                    });
+                }
+            }
+        }
+
+        VulnerabilityReport {
+            target: target.to_string(),
+            scanner_name: "cargo-audit".to_string(),
+            vulnerabilities,
+        }
+    }
+}
+
+pub struct TrivyScanner;
+
+impl TrivyScanner {
+    pub fn parse_output(target: &str, trivy_json: &str) -> VulnerabilityReport {
+        let mut vulnerabilities = Vec::new();
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(trivy_json) {
+            if let Some(results) = value.get("Results").and_then(|v| v.as_array()) {
+                for res in results {
+                    if let Some(vulns) = res.get("Vulnerabilities").and_then(|v| v.as_array()) {
+                        for item in vulns {
+                            let id = item.get("VulnerabilityID").and_then(|s| s.as_str()).unwrap_or("CVE-UNKNOWN").to_string();
+                            let package_name = item.get("PkgName").and_then(|s| s.as_str()).unwrap_or("unknown").to_string();
+                            let installed_version = item.get("InstalledVersion").and_then(|s| s.as_str()).unwrap_or("0.0.0").to_string();
+                            let fixed_version = item.get("FixedVersion").and_then(|s| s.as_str()).map(|s| s.to_string());
+                            let sev_str = item.get("Severity").and_then(|s| s.as_str()).unwrap_or("MEDIUM");
+
+                            let severity = match sev_str.to_uppercase().as_str() {
+                                "CRITICAL" => SeverityLevel::Critical,
+                                "HIGH" => SeverityLevel::High,
+                                "LOW" => SeverityLevel::Low,
+                                _ => SeverityLevel::Medium,
+                            };
+
+                            vulnerabilities.push(VulnerabilityItem {
+                                id,
+                                package_name,
+                                installed_version,
+                                fixed_version,
+                                severity,
+                                description: "Trivy container scan finding".to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        VulnerabilityReport {
+            target: target.to_string(),
+            scanner_name: "trivy".to_string(),
+            vulnerabilities,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -226,5 +303,24 @@ mod tests {
         assert_eq!(findings.len(), 2);
         assert_eq!(findings[0].status, PolicyFindingStatus::Fail);
         assert_eq!(findings[1].status, PolicyFindingStatus::Warning);
+    }
+
+    #[test]
+    fn test_trivy_scanner_parsing() {
+        let raw = r#"{
+            "Results": [{
+                "Vulnerabilities": [{
+                    "VulnerabilityID": "CVE-2026-9999",
+                    "PkgName": "curl",
+                    "InstalledVersion": "7.68.0",
+                    "FixedVersion": "7.68.0-1ubuntu2.1",
+                    "Severity": "CRITICAL"
+                }]
+            }]
+        }"#;
+        let report = TrivyScanner::parse_output("ubuntu:latest", raw);
+        assert_eq!(report.vulnerabilities.len(), 1);
+        assert_eq!(report.vulnerabilities[0].id, "CVE-2026-9999");
+        assert_eq!(report.vulnerabilities[0].severity, SeverityLevel::Critical);
     }
 }

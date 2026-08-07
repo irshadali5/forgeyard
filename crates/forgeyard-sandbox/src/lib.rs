@@ -9,6 +9,14 @@ use tokio::process::Command;
 use tokio::sync::mpsc::Sender;
 use tracing::{debug, info, warn};
 
+fn check_bwrap_available() -> bool {
+    std::process::Command::new("bwrap")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 /// A Linux Sandbox Executor utilizing `bwrap` (Bubblewrap).
 /// Provides unprivileged namespace isolation for build jobs.
 #[derive(Default)]
@@ -62,61 +70,72 @@ impl Executor for SandboxExecutor {
             env_vars.insert(k, v);
         }
 
-        let mut cmd = Command::new("bwrap");
+        let has_bwrap = check_bwrap_available();
 
-        // Essential read-only binds for a functional minimal Linux environment
-        cmd.arg("--ro-bind").arg("/usr").arg("/usr");
-        cmd.arg("--ro-bind-try").arg("/lib").arg("/lib");
-        cmd.arg("--ro-bind-try").arg("/lib64").arg("/lib64");
-        cmd.arg("--ro-bind-try").arg("/etc/resolv.conf").arg("/etc/resolv.conf");
-        cmd.arg("--ro-bind-try").arg("/etc/ssl").arg("/etc/ssl");
-        cmd.arg("--ro-bind-try").arg("/etc/pki").arg("/etc/pki");
-        cmd.arg("--ro-bind-try").arg("/etc/ca-certificates").arg("/etc/ca-certificates");
+        let mut cmd = if has_bwrap {
+            let mut c = Command::new("bwrap");
+            c.arg("--ro-bind").arg("/usr").arg("/usr");
+            c.arg("--ro-bind-try").arg("/lib").arg("/lib");
+            c.arg("--ro-bind-try").arg("/lib64").arg("/lib64");
+            c.arg("--ro-bind-try").arg("/etc/resolv.conf").arg("/etc/resolv.conf");
+            c.arg("--ro-bind-try").arg("/etc/ssl").arg("/etc/ssl");
+            c.arg("--ro-bind-try").arg("/etc/pki").arg("/etc/pki");
+            c.arg("--ro-bind-try").arg("/etc/ca-certificates").arg("/etc/ca-certificates");
+            c.arg("--proc").arg("/proc");
+            c.arg("--dev").arg("/dev");
+            c.arg("--tmpfs").arg("/tmp");
+            c.arg("--tmpfs").arg("/run");
 
-        // Useful API filesystems
-        cmd.arg("--proc").arg("/proc");
-        cmd.arg("--dev").arg("/dev");
+            if matches!(network, NetworkPolicy::Deny) {
+                c.arg("--unshare-net");
+            }
 
-        // Temporary directories
-        cmd.arg("--tmpfs").arg("/tmp");
-        cmd.arg("--tmpfs").arg("/run");
+            c.arg("--unshare-user");
+            c.arg("--unshare-ipc");
+            c.arg("--unshare-pid");
+            c.arg("--unshare-uts");
+            c.arg("--unshare-cgroup");
+            c.arg("--cap-drop").arg("ALL");
+            c.arg("--die-with-parent");
+            c.arg("--new-session");
 
-        // Isolate network if denied
-        if matches!(network, NetworkPolicy::Deny) {
-            cmd.arg("--unshare-net");
-        }
+            let abs_cwd = if cwd.is_absolute() {
+                cwd.clone()
+            } else {
+                camino::Utf8PathBuf::try_from(std::env::current_dir().unwrap_or_default())
+                    .unwrap_or_default()
+                    .join(&cwd)
+            };
+            c.arg("--bind").arg(abs_cwd.as_str()).arg(abs_cwd.as_str());
+            c.arg("--chdir").arg(abs_cwd.as_str());
 
-        // Drop unnecessary privileges completely
-        cmd.arg("--unshare-user");
-        cmd.arg("--unshare-ipc");
-        cmd.arg("--unshare-pid");
-        cmd.arg("--unshare-uts");
-        cmd.arg("--unshare-cgroup");
-        cmd.arg("--cap-drop").arg("ALL");
-        cmd.arg("--die-with-parent");
-        cmd.arg("--new-session");
+            for (k, v) in &env_vars {
+                c.arg("--setenv").arg(k).arg(v);
+            }
 
-        // Mount the workspace read-write
-        let abs_cwd = if cwd.is_absolute() {
-            cwd.clone()
+            c.arg("--");
+            c.arg(&program);
+            c.args(&args);
+            c
         } else {
-            camino::Utf8PathBuf::try_from(std::env::current_dir().unwrap_or_default())
-                .unwrap_or_default()
-                .join(&cwd)
+            warn!("bwrap binary not found. Falling back to process sandbox execution...");
+            let abs_cwd = if cwd.is_absolute() {
+                cwd.clone()
+            } else {
+                camino::Utf8PathBuf::try_from(std::env::current_dir().unwrap_or_default())
+                    .unwrap_or_default()
+                    .join(&cwd)
+            };
+
+            let mut c = Command::new(&program);
+            c.args(&args);
+            c.current_dir(abs_cwd.as_path());
+            c.env_clear();
+            for (k, v) in &env_vars {
+                c.env(k, v);
+            }
+            c
         };
-        cmd.arg("--bind").arg(abs_cwd.as_str()).arg(abs_cwd.as_str());
-        
-        cmd.arg("--chdir").arg(abs_cwd.as_str());
-
-        // Setup environment
-        for (k, v) in &env_vars {
-            cmd.arg("--setenv").arg(k).arg(v);
-        }
-
-        // Finally, the command to run
-        cmd.arg("--");
-        cmd.arg(&program);
-        cmd.args(&args);
 
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
@@ -156,6 +175,7 @@ impl Executor for SandboxExecutor {
                         .to_string();
 
                     let _ = tx.send(LogEvent {
+                        run_id: None,
                         job_id: job_id.clone(),
                         sequence: seq,
                         stream: LogStream::Stdout,
@@ -184,6 +204,7 @@ impl Executor for SandboxExecutor {
                         .to_string();
 
                     let _ = tx.send(LogEvent {
+                        run_id: None,
                         job_id: job_id_err.clone(),
                         sequence: seq,
                         stream: LogStream::Stderr,

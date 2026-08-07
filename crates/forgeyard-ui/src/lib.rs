@@ -611,7 +611,7 @@ fn PipelineGraph(run_id: String) -> Element {
             let client = reqwest::Client::new();
             loop {
                 interval.tick().await;
-                let url = format!("{}/api/v1/runs/{}/status", get_api_base_url(), run_id);
+                let url = format!("{}/api/v1/status/{}", get_api_base_url(), run_id);
                 if let Ok(resp) = client.get(&url).send().await {
                     if let Ok(status) = resp.json::<forgeyard_api::GetStatusResponse>().await {
                         jobs.set(status.jobs);

@@ -5,6 +5,11 @@ edition = "2024"
 
 [dependencies]
 async-trait = { workspace = true }
-sha2 = "0.10.8"
+blake3 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 hex = "0.4.3"
 tokio = { workspace = true, features = ["fs", "io-util"] }
+
+[dev-dependencies]
+tempfile = "3.10"

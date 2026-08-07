@@ -7,4 +7,6 @@ edition = "2024"
 dotenvy = "0.15"
 async-trait = "0.1"
 thiserror = "1.0"
+blake3 = { workspace = true }
+tokio = { workspace = true }
 forgeyard-model = { path = "../forgeyard-model" }

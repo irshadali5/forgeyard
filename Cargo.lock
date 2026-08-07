@@ -2213,6 +2213,7 @@ name = "forgeyard-adapter-android"
 version = "0.1.0"
 dependencies = [
  "forgeyard-config",
+ "tempfile",
 ]
 
 [[package]]
@@ -2238,6 +2239,7 @@ name = "forgeyard-adapter-oci"
 version = "0.1.0"
 dependencies = [
  "forgeyard-config",
+ "tempfile",
 ]
 
 [[package]]
@@ -2252,6 +2254,7 @@ name = "forgeyard-adapter-xcode"
 version = "0.1.0"
 dependencies = [
  "forgeyard-config",
+ "tempfile",
 ]
 
 [[package]]
@@ -2311,6 +2314,7 @@ version = "0.1.0"
 dependencies = [
  "flate2",
  "tar",
+ "tempfile",
  "thiserror 1.0.69",
  "walkdir",
  "zip",
@@ -2321,8 +2325,11 @@ name = "forgeyard-artifacts"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "blake3",
  "hex",
- "sha2 0.10.9",
+ "serde",
+ "serde_json",
+ "tempfile",
  "tokio",
 ]
 
@@ -2369,6 +2376,7 @@ dependencies = [
  "forgeyard-pipeline",
  "miette",
  "reqwest 0.12.28",
+ "ron",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -2603,9 +2611,11 @@ name = "forgeyard-secrets"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "blake3",
  "dotenvy",
  "forgeyard-model",
  "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]

@@ -182,6 +182,7 @@ pub enum LogStream {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogEvent {
+    pub run_id: Option<RunId>,
     pub job_id: JobId,
     pub sequence: u64,
     pub stream: LogStream,

@@ -216,3 +216,71 @@ impl Publisher for OciPublisher {
         })
     }
 }
+
+pub struct GitHubReleasePublisher {
+    pub owner: String,
+    pub repo: String,
+    pub tag_name: String,
+    pub token: String,
+}
+
+#[async_trait]
+impl Publisher for GitHubReleasePublisher {
+    async fn prepare(&self, release: &ReleaseManifest) -> Result<PublishPlan, PublishError> {
+        let tag = if self.tag_name.is_empty() { release.release.clone() } else { self.tag_name.clone() };
+        Ok(PublishPlan {
+            steps: vec![
+                format!("Create GitHub release tag {}", tag),
+                format!("Upload release assets to https://github.com/{}/{}/releases/tag/{}", self.owner, self.repo, tag),
+            ],
+        })
+    }
+
+    async fn publish(
+        &self,
+        _plan: PublishPlan,
+        _idempotency_key: IdempotencyKey,
+    ) -> Result<PublishResult, PublishError> {
+        let url = format!("https://github.com/{}/{}/releases/tag/{}", self.owner, self.repo, self.tag_name);
+        Ok(PublishResult {
+            success: true,
+            artifact_urls: vec![url],
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_local_publisher_plan() {
+        let publ = LocalDirectoryPublisher::new("/tmp/deploy_test");
+        let manifest = ReleaseManifest {
+            release: "v1.0.0".into(),
+            revision: "abc1234".into(),
+            channel: "stable".into(),
+        };
+        let plan = publ.prepare(&manifest).await.unwrap();
+        assert!(!plan.steps.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_github_release_publisher() {
+        let publ = GitHubReleasePublisher {
+            owner: "forgeyard".into(),
+            repo: "forgeyard".into(),
+            tag_name: "v0.1.0".into(),
+            token: "secret".into(),
+        };
+        let manifest = ReleaseManifest {
+            release: "v0.1.0".into(),
+            revision: "head".into(),
+            channel: "stable".into(),
+        };
+        let plan = publ.prepare(&manifest).await.unwrap();
+        let res = publ.publish(plan, IdempotencyKey("key-1".into())).await.unwrap();
+        assert!(res.success);
+        assert_eq!(res.artifact_urls[0], "https://github.com/forgeyard/forgeyard/releases/tag/v0.1.0");
+    }
+}

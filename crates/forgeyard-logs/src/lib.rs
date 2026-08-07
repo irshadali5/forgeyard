@@ -1,45 +1,169 @@
-pub struct LogStream {
-    pub job_id: String,
-}
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
+use std::path::{Path, PathBuf};
+use std::io::{BufRead, Write};
 
 pub trait LogReader: Send + Sync {
     fn read_logs(&self, job_id: &str) -> Vec<String>;
+    fn search_logs(&self, job_id: &str, keyword: &str) -> Vec<String>;
 }
 
 pub trait LogWriter: Send + Sync {
     fn write_log(&self, job_id: &str, line: &str) -> Result<(), String>;
+    fn flush(&self) -> Result<(), String>;
 }
 
-pub struct FileLogSystem {
-    pub log_dir: std::path::PathBuf,
+pub struct RedactingLogWriter<W: LogWriter> {
+    inner: W,
+    secret_patterns: Vec<String>,
 }
 
-impl LogReader for FileLogSystem {
+impl<W: LogWriter> RedactingLogWriter<W> {
+    pub fn new(inner: W, secrets: Vec<String>) -> Self {
+        Self {
+            inner,
+            secret_patterns: secrets,
+        }
+    }
+
+    fn redact(&self, line: &str) -> String {
+        let mut redacted = line.to_string();
+        for secret in &self.secret_patterns {
+            if !secret.is_empty() {
+                redacted = redacted.replace(secret, "[REDACTED_SECRET]");
+            }
+        }
+        redacted
+    }
+}
+
+impl<W: LogWriter> LogWriter for RedactingLogWriter<W> {
+    fn write_log(&self, job_id: &str, line: &str) -> Result<(), String> {
+        let clean_line = self.redact(line);
+        self.inner.write_log(job_id, &clean_line)
+    }
+
+    fn flush(&self) -> Result<(), String> {
+        self.inner.flush()
+    }
+}
+
+pub struct RingBufferLogWriter {
+    capacity_per_job: usize,
+    buffers: Arc<Mutex<std::collections::HashMap<String, VecDeque<String>>>>,
+}
+
+impl RingBufferLogWriter {
+    pub fn new(capacity_per_job: usize) -> Self {
+        Self {
+            capacity_per_job,
+            buffers: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        }
+    }
+}
+
+impl LogWriter for RingBufferLogWriter {
+    fn write_log(&self, job_id: &str, line: &str) -> Result<(), String> {
+        let mut guard = self.buffers.lock().map_err(|e| e.to_string())?;
+        let deque = guard.entry(job_id.to_string()).or_insert_with(VecDeque::new);
+        if deque.len() >= self.capacity_per_job {
+            deque.pop_front();
+        }
+        deque.push_back(line.to_string());
+        Ok(())
+    }
+
+    fn flush(&self) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+impl LogReader for RingBufferLogWriter {
+    fn read_logs(&self, job_id: &str) -> Vec<String> {
+        let guard = match self.buffers.lock() {
+            Ok(g) => g,
+            Err(_) => return Vec::new(),
+        };
+        guard.get(job_id).map(|d| d.iter().cloned().collect()).unwrap_or_default()
+    }
+
+    fn search_logs(&self, job_id: &str, keyword: &str) -> Vec<String> {
+        self.read_logs(job_id)
+            .into_iter()
+            .filter(|line| line.contains(keyword))
+            .collect()
+    }
+}
+
+pub struct RotatingFileLogSystem {
+    pub log_dir: PathBuf,
+    pub max_file_size_bytes: u64,
+}
+
+impl RotatingFileLogSystem {
+    pub fn new(log_dir: impl Into<PathBuf>, max_size: u64) -> Self {
+        Self {
+            log_dir: log_dir.into(),
+            max_file_size_bytes: max_size,
+        }
+    }
+}
+
+impl LogReader for RotatingFileLogSystem {
     fn read_logs(&self, job_id: &str) -> Vec<String> {
         let path = self.log_dir.join(format!("{}.log", job_id));
         if let Ok(file) = std::fs::File::open(path) {
-            use std::io::BufRead;
             let reader = std::io::BufReader::new(file);
             reader.lines().filter_map(Result::ok).collect()
         } else {
             Vec::new()
         }
     }
+
+    fn search_logs(&self, job_id: &str, keyword: &str) -> Vec<String> {
+        self.read_logs(job_id)
+            .into_iter()
+            .filter(|l| l.contains(keyword))
+            .collect()
+    }
 }
 
-impl LogWriter for FileLogSystem {
+impl LogWriter for RotatingFileLogSystem {
     fn write_log(&self, job_id: &str, line: &str) -> Result<(), String> {
-        use std::io::Write;
         let path = self.log_dir.join(format!("{}.log", job_id));
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
+        
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
-            .open(path)
+            .open(&path)
             .map_err(|e| e.to_string())?;
             
         writeln!(file, "{}", line).map_err(|e| e.to_string())
+    }
+
+    fn flush(&self) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ring_buffer_and_redaction() {
+        let ring = RingBufferLogWriter::new(3);
+        let redacting = RedactingLogWriter::new(ring, vec!["super_secret_token".to_string()]);
+
+        redacting.write_log("job-1", "Build started with super_secret_token!").unwrap();
+        redacting.write_log("job-1", "Step 1 complete").unwrap();
+
+        let reader = RingBufferLogWriter::new(3);
+        // Direct test on redact
+        let clean = redacting.redact("my super_secret_token value");
+        assert_eq!(clean, "my [REDACTED_SECRET] value");
     }
 }

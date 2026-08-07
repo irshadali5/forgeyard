@@ -58,16 +58,47 @@ impl AndroidAdapter {
             jobs,
         }
     }
+}
 
-    pub fn inject_into_config(
-        mut config: ForgeyardConfig,
-        workspace_root: impl AsRef<Path>,
-    ) -> ForgeyardConfig {
-        if Self::detect(workspace_root) && !config.pipelines.contains_key("android_release") {
-            config
-                .pipelines
-                .insert("android_release".to_string(), Self::generate_default_pipeline());
+pub struct GradleTaskBuilder {
+    pub build_variant: String,
+    pub tasks: Vec<String>,
+}
+
+impl GradleTaskBuilder {
+    pub fn new(variant: &str) -> Self {
+        Self {
+            build_variant: variant.to_string(),
+            tasks: vec![format!("assemble{}", variant), format!("test{}UnitTest", variant)],
         }
-        config
+    }
+
+    pub fn to_command(&self) -> Vec<String> {
+        let mut cmd = vec!["./gradlew".to_string()];
+        cmd.extend(self.tasks.clone());
+        cmd
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_android_adapter_detection() {
+        let dir = tempdir().unwrap();
+        assert!(!AndroidAdapter::detect(dir.path()));
+
+        std::fs::write(dir.path().join("build.gradle.kts"), b"// gradle").unwrap();
+        assert!(AndroidAdapter::detect(dir.path()));
+    }
+
+    #[test]
+    fn test_gradle_task_builder() {
+        let builder = GradleTaskBuilder::new("Release");
+        let cmd = builder.to_command();
+        assert_eq!(cmd[0], "./gradlew");
+        assert_eq!(cmd[1], "assembleRelease");
     }
 }

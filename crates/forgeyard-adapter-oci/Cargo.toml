@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 forgeyard-config = { path = "../forgeyard-config" }
+
+[dev-dependencies]
+tempfile = "3.10"

@@ -35,17 +35,16 @@ Engineered entirely in Rust, Forgeyard replaces heavy, external database depende
 ### 📊 OpenTelemetry & Distributed Observability Tracing
 - **Span Lifecycle Management (`OtelSpan` & `TelemetryExporter`)**: Generates structured distributed trace spans (`Server`, `Client`, `Internal`) with parent-child trace propagation for job scheduling, runner leasing, execution timing, and CAS transfer latency.
 
-### 🛡️ DevSecOps Vulnerability & Compliance Scanning
-- **Automated CVE & Vulnerability Policy (`VulnerabilityPolicy`)**: Evaluates `trivy` container scans and `cargo-audit` dependency advisories against customizable severity thresholds (`Low`, `Medium`, `High`, `Critical`) and enforces security build gates.
+### 🔒 Envelope Encryption & Bearer Auth API
+- **Encrypted Vault Persistence**: Encrypts pipeline secrets in-memory and on-disk using `EncryptedVaultBackend` with BLAKE3 key derivation and XOR memory masking.
+- **REST & WebSocket API Auth**: Protects all `/api/v1/*` endpoints in `forgeyard-daemon` with Bearer token authentication middleware.
 
-### 🌐 Multi-Cloud Remote Worker Cluster & NAT Traversal
-- **Persistent Edge Worker Tunnels (`RunnerClusterRegistry`)**: Coordinates distributed edge build runners operating behind firewalls/NAT via persistent QUIC connections, featuring automated heartbeat tracking and stale worker eviction.
+### 🔄 GitHub Actions & GitLab CI Pipeline Converters
+- **Automated Workflow Translation**: Converts `.github/workflows/*.yml` and `.gitlab-ci.yml` configs into native `forgeyard.ron` IR using `GitHubWorkflowConverter`, `GitLabCIConverter`, and the `forgeyard import` CLI command.
 
-### 🔒 Enterprise Security, Signing & SLSA Provenance
-- **SLSA v1.0 Provenance Attestations**: Generates standard `in-toto` provenance statements detailing environment variables, git commits, and runner IDs.
-- **Ed25519 Cryptographic Signing (`ed25519-dalek`)**: Digitally signs build provenance and execution records (`SignedProvenance`).
-- **Security Policy Engine (`forgeyard-policy`)**: Analyzes job execution specifications against command safety rules, privilege constraints, and forbidden pattern filters.
-- **Log Sanitization & Redaction**: Built-in streaming log redactor preventing token and secret leaks.
+### 📦 Multi-Platform Native Package Generators & Deployment
+- **Native Package Generators**: Automated `.apk`, `.deb`, `.msi`, `.app`, `.tar.gz`, and `.zip` bundle creation in `forgeyard-packaging`.
+- **Cloud & Registry Deployment**: Built-in deployment drivers for AWS S3, OCI/Docker container registries, SSH servers, and GitHub Releases in `forgeyard-deploy`.
 
 ---
 

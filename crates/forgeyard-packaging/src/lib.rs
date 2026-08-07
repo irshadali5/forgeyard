@@ -219,3 +219,54 @@ impl Packager for AppPackager {
         }])
     }
 }
+
+pub struct DebianPackager {
+    pub workspace_root: String,
+    pub output_dir: String,
+}
+
+#[async_trait]
+impl Packager for DebianPackager {
+    fn supports(&self, target: &Target) -> bool {
+        target.os == "linux" || target.os == "debian" || target.os == "ubuntu"
+    }
+
+    async fn package(
+        &self,
+        context: &PackageContext,
+    ) -> Result<Vec<ProducedArtifact>, PackageError> {
+        let artifact_name = format!("{}_{}_amd64.deb", context.name, context.version);
+        let output_path = std::path::Path::new(&self.output_dir).join(&artifact_name);
+        
+        let status = std::process::Command::new("cargo")
+            .current_dir(&self.workspace_root)
+            .arg("deb")
+            .arg("-o")
+            .arg(&output_path)
+            .status()
+            .map_err(|e| PackageError::Failed(format!("Failed to execute cargo deb: {}", e)))?;
+            
+        if !status.success() {
+            return Err(PackageError::Failed(format!("cargo deb exited with status: {}", status)));
+        }
+
+        Ok(vec![ProducedArtifact {
+            name: artifact_name,
+            path: output_path.to_string_lossy().to_string(),
+        }])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_packager_target_support() {
+        let tar_packager = TarPackager { workspace_root: ".".into(), output_dir: ".".into() };
+        let deb_packager = DebianPackager { workspace_root: ".".into(), output_dir: ".".into() };
+
+        assert!(tar_packager.supports(&Target { os: "linux".into(), arch: "x86_64".into() }));
+        assert!(deb_packager.supports(&Target { os: "debian".into(), arch: "x86_64".into() }));
+    }
+}

@@ -90,6 +90,7 @@ impl LocalRunner {
     async fn emit_system_log(tx: &Option<Sender<LogEvent>>, job_id: JobId, message: impl Into<String>) {
         if let Some(t) = tx {
             let _ = t.send(LogEvent {
+                run_id: None,
                 job_id,
                 sequence: 0, // system logs don't strictly adhere to stdout seq
                 stream: LogStream::System,

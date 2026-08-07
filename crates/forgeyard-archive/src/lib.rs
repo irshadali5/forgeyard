@@ -87,3 +87,87 @@ pub fn unpack_zip(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), Ar
     archive.extract(dst_path)?;
     Ok(())
 }
+
+pub enum ArchiveFormat {
+    TarGz,
+    Zip,
+    Unknown,
+}
+
+pub struct ArchiveManager;
+
+impl ArchiveManager {
+    pub fn detect_format(path: impl AsRef<Path>) -> ArchiveFormat {
+        let p = path.as_ref();
+        if let Some(ext) = p.extension().and_then(|s| s.to_str()) {
+            if ext == "zip" {
+                return ArchiveFormat::Zip;
+            } else if ext == "gz" || ext == "tgz" {
+                return ArchiveFormat::TarGz;
+            }
+        }
+        ArchiveFormat::Unknown
+    }
+
+    pub fn auto_extract(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), ArchiveError> {
+        match Self::detect_format(&src) {
+            ArchiveFormat::TarGz => unpack_tar_gz(src, dst),
+            ArchiveFormat::Zip => unpack_zip(src, dst),
+            ArchiveFormat::Unknown => unpack_tar_gz(src, dst),
+        }
+    }
+
+    pub fn calculate_compression_ratio(src_dir: impl AsRef<Path>, archive_file: impl AsRef<Path>) -> Result<f64, ArchiveError> {
+        let src_size = walkdir::WalkDir::new(src_dir.as_ref())
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter_map(|e| e.metadata().ok())
+            .filter(|m| m.is_file())
+            .map(|m| m.len())
+            .sum::<u64>() as f64;
+
+        let archive_size = std::fs::metadata(archive_file.as_ref())?.len() as f64;
+        if src_size == 0.0 {
+            return Ok(1.0);
+        }
+        Ok(archive_size / src_size)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_tar_gz_creation_and_unpacking() {
+        let dir = tempdir().unwrap();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(src_dir.join("test.txt"), b"archive payload content").unwrap();
+
+        let archive_file = dir.path().join("test.tar.gz");
+        create_tar_gz(&src_dir, &archive_file).unwrap();
+        assert!(archive_file.exists());
+
+        let unpack_dir = dir.path().join("unpack");
+        unpack_tar_gz(&archive_file, &unpack_dir).unwrap();
+        assert!(unpack_dir.join("test.txt").exists());
+    }
+
+    #[test]
+    fn test_zip_creation_and_unpacking() {
+        let dir = tempdir().unwrap();
+        let src_dir = dir.path().join("src_zip");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(src_dir.join("hello.txt"), b"zip payload content").unwrap();
+
+        let zip_file = dir.path().join("test.zip");
+        create_zip(&src_dir, &zip_file).unwrap();
+        assert!(zip_file.exists());
+
+        let unpack_dir = dir.path().join("unpack_zip");
+        unpack_zip(&zip_file, &unpack_dir).unwrap();
+        assert!(unpack_dir.join("hello.txt").exists());
+    }
+}

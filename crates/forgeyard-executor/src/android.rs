@@ -170,6 +170,7 @@ impl AndroidExecutor {
                 let mut seq = 1000;
                 for line in text.lines() {
                     let _ = tx.send(forgeyard_model::LogEvent {
+                        run_id: None,
                         job_id,
                         sequence: seq,
                         stream: forgeyard_model::LogStream::Stdout,
@@ -247,6 +248,7 @@ impl Executor for AndroidExecutor {
                         info!("[{}] {}", job_name_out, line);
                         if let Some(tx) = &log_tx_out {
                             let _ = tx.send(forgeyard_model::LogEvent {
+                                run_id: None,
                                 job_id,
                                 sequence: seq,
                                 stream: forgeyard_model::LogStream::Stdout,
@@ -266,6 +268,7 @@ impl Executor for AndroidExecutor {
                         error!("[{}] {}", job_name_err, line);
                         if let Some(tx) = &log_tx_err {
                             let _ = tx.send(forgeyard_model::LogEvent {
+                                run_id: None,
                                 job_id,
                                 sequence: seq,
                                 stream: forgeyard_model::LogStream::Stderr,
@@ -337,7 +340,7 @@ impl AndroidExecutor {
                     while let Ok(Some(line)) = reader.next_line().await {
                         if let Some(tx) = &log_tx_out {
                             let _ = tx.send(forgeyard_model::LogEvent {
-                                job_id, sequence: seq, stream: forgeyard_model::LogStream::Stdout,
+                                run_id: None, job_id, sequence: seq, stream: forgeyard_model::LogStream::Stdout,
                                 timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis().to_string(),
                                 message: line,
                             }).await;
@@ -353,7 +356,7 @@ impl AndroidExecutor {
                     while let Ok(Some(line)) = reader.next_line().await {
                         if let Some(tx) = &log_tx_err {
                             let _ = tx.send(forgeyard_model::LogEvent {
-                                job_id, sequence: seq, stream: forgeyard_model::LogStream::Stderr,
+                                run_id: None, job_id, sequence: seq, stream: forgeyard_model::LogStream::Stderr,
                                 timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis().to_string(),
                                 message: line,
                             }).await;

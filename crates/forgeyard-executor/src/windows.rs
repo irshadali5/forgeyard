@@ -112,6 +112,7 @@ impl Executor for WindowsExecutor {
                 debug!("[{}] STDOUT: {}", job_name_out, line);
                 if let Some(tx) = &log_tx_out {
                     let _ = tx.send(LogEvent {
+                        run_id: None,
                         job_id: job_id.clone(),
                         sequence: seq,
                         stream: LogStream::Stdout,
@@ -133,6 +134,7 @@ impl Executor for WindowsExecutor {
                 debug!("[{}] STDERR: {}", job_name_err, line);
                 if let Some(tx) = &log_tx_err {
                     let _ = tx.send(LogEvent {
+                        run_id: None,
                         job_id: job_id_err.clone(),
                         sequence: seq,
                         stream: LogStream::Stderr,

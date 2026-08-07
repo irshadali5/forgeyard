@@ -18,3 +18,4 @@ forgeyard-detector = { path = "../forgeyard-detector" }
 forgeyard-config = { path = "../forgeyard-config" }
 forgeyard-adapter-cargo = { path = "../forgeyard-adapter-cargo" }
 forgeyard-pipeline = { path = "../forgeyard-pipeline" }
+ron = { workspace = true }

@@ -48,6 +48,14 @@ enum Commands {
     },
     /// View build matrix
     Matrix,
+    /// Import pipeline from GitHub Actions or GitLab CI
+    Import {
+        /// Platform (github or gitlab)
+        #[arg(short, long, default_value = "github")]
+        platform: String,
+        /// Path to workflow file
+        file: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -259,6 +267,18 @@ ForgeyardConfig(
                 
                 println!("{0: <20} | {1: <30} | {2: <20}", job.name, cmd_trunc, "N/A");
             }
+        }
+        Commands::Import { platform, file } => {
+            println!("Importing {} workflow from {}...", platform, file);
+            let content = std::fs::read_to_string(&file).into_diagnostic()?;
+            let config = if platform.to_lowercase() == "gitlab" {
+                forgeyard_config::GitLabCIConverter::convert_yaml("imported-project", &content)
+            } else {
+                forgeyard_config::GitHubWorkflowConverter::convert_yaml("imported-project", &content)
+            };
+            let ron_str = ron::ser::to_string_pretty(&config, ron::ser::PrettyConfig::default()).into_diagnostic()?;
+            std::fs::write("forgeyard.ron", ron_str).into_diagnostic()?;
+            println!("Successfully imported pipeline into forgeyard.ron!");
         }
     }
 

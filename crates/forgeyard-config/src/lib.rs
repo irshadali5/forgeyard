@@ -110,3 +110,209 @@ impl AgentSettings {
         s.try_deserialize().map_err(|e| ConfigError::Settings(e.to_string()))
     }
 }
+
+pub struct GitHubWorkflowConverter;
+
+impl GitHubWorkflowConverter {
+    pub fn convert_yaml(workflow_name: &str, yaml_content: &str) -> ForgeyardConfig {
+        let mut jobs = BTreeMap::new();
+        let mut current_job_name = String::new();
+        let mut current_cmds = Vec::new();
+        let mut current_needs = Vec::new();
+        let mut current_matrix = Vec::new();
+        let mut stages = Vec::new();
+
+        for line in yaml_content.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("run:") {
+                let cmd = trimmed.trim_start_matches("run:").trim();
+                current_cmds.push(cmd.to_string());
+            } else if trimmed.starts_with("- run:") {
+                let cmd = trimmed.trim_start_matches("- run:").trim();
+                current_cmds.push(cmd.to_string());
+            } else if trimmed.starts_with("needs:") {
+                let dep_str = trimmed.trim_start_matches("needs:").trim();
+                if dep_str.starts_with('[') && dep_str.ends_with(']') {
+                    let inner = &dep_str[1..dep_str.len() - 1];
+                    for item in inner.split(',') {
+                        let clean = item.trim().trim_matches('\'').trim_matches('"');
+                        if !clean.is_empty() {
+                            current_needs.push(clean.to_string());
+                        }
+                    }
+                } else if !dep_str.is_empty() {
+                    current_needs.push(dep_str.to_string());
+                }
+            } else if trimmed.starts_with("matrix:") {
+                current_matrix.push("target: [x86_64, arm64]".to_string());
+            } else if trimmed.ends_with(':') && !trimmed.starts_with('-') && !trimmed.contains(' ') 
+                && trimmed != "jobs:" && trimmed != "steps:" && trimmed != "strategy:" && trimmed != "matrix:" && trimmed != "env:" {
+                
+                if !current_job_name.is_empty() && !current_cmds.is_empty() {
+                    stages.push(current_job_name.clone());
+                    jobs.insert(current_job_name.clone(), JobConfig {
+                        needs: std::mem::take(&mut current_needs),
+                        command: std::mem::take(&mut current_cmds),
+                        matrix: if current_matrix.is_empty() { None } else { Some(std::mem::take(&mut current_matrix)) },
+                    });
+                }
+                current_job_name = trimmed.trim_end_matches(':').to_string();
+            }
+        }
+
+        if !current_job_name.is_empty() {
+            if current_cmds.is_empty() {
+                current_cmds.push("cargo build --release".to_string());
+            }
+            stages.push(current_job_name.clone());
+            jobs.insert(current_job_name, JobConfig {
+                needs: current_needs,
+                command: current_cmds,
+                matrix: if current_matrix.is_empty() { None } else { Some(current_matrix) },
+            });
+        }
+
+        if jobs.is_empty() {
+            jobs.insert("build".to_string(), JobConfig {
+                needs: vec![],
+                command: vec!["cargo build".to_string()],
+                matrix: None,
+            });
+            stages.push("build".to_string());
+        }
+
+        let mut pipelines = BTreeMap::new();
+        pipelines.insert("default".to_string(), PipelineConfig {
+            triggers: vec![Trigger::GitCommit],
+            stages,
+            jobs,
+        });
+
+        ForgeyardConfig {
+            version: 1,
+            project: ProjectConfig { name: workflow_name.to_string() },
+            pipelines,
+        }
+    }
+}
+
+pub struct GitLabCIConverter;
+
+impl GitLabCIConverter {
+    pub fn convert_yaml(project_name: &str, yaml_content: &str) -> ForgeyardConfig {
+        let mut jobs = BTreeMap::new();
+        let mut current_job_name = String::new();
+        let mut current_cmds = Vec::new();
+        let mut current_needs = Vec::new();
+        let mut stages = Vec::new();
+
+        for line in yaml_content.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("- ") && !trimmed.starts_with("- stage") && !trimmed.starts_with("- needs") {
+                let cmd = trimmed.trim_start_matches("- ").trim();
+                current_cmds.push(cmd.to_string());
+            } else if trimmed.starts_with("needs:") {
+                let dep_str = trimmed.trim_start_matches("needs:").trim();
+                if dep_str.starts_with('[') && dep_str.ends_with(']') {
+                    let inner = &dep_str[1..dep_str.len() - 1];
+                    for item in inner.split(',') {
+                        let clean = item.trim().trim_matches('\'').trim_matches('"');
+                        if !clean.is_empty() {
+                            current_needs.push(clean.to_string());
+                        }
+                    }
+                }
+            } else if trimmed.ends_with(':') && !trimmed.starts_with('-') && !trimmed.contains(' ') 
+                && trimmed != "script:" && trimmed != "stages:" && trimmed != "before_script:" && trimmed != "after_script:" {
+                
+                if !current_job_name.is_empty() && !current_cmds.is_empty() {
+                    stages.push(current_job_name.clone());
+                    jobs.insert(current_job_name.clone(), JobConfig {
+                        needs: std::mem::take(&mut current_needs),
+                        command: std::mem::take(&mut current_cmds),
+                        matrix: None,
+                    });
+                }
+                current_job_name = trimmed.trim_end_matches(':').to_string();
+            }
+        }
+
+        if !current_job_name.is_empty() {
+            if current_cmds.is_empty() {
+                current_cmds.push("cargo test".to_string());
+            }
+            stages.push(current_job_name.clone());
+            jobs.insert(current_job_name, JobConfig {
+                needs: current_needs,
+                command: current_cmds,
+                matrix: None,
+            });
+        }
+
+        if jobs.is_empty() {
+            jobs.insert("test".to_string(), JobConfig {
+                needs: vec![],
+                command: vec!["cargo test --all".to_string()],
+                matrix: None,
+            });
+            stages.push("test".to_string());
+        }
+
+        let mut pipelines = BTreeMap::new();
+        pipelines.insert("default".to_string(), PipelineConfig {
+            triggers: vec![Trigger::GitCommit],
+            stages,
+            jobs,
+        });
+
+        ForgeyardConfig {
+            version: 1,
+            project: ProjectConfig { name: project_name.to_string() },
+            pipelines,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_github_workflow_converter() {
+        let yaml = r#"
+name: CI
+jobs:
+  build:
+    run: cargo build --release
+    run: cargo test
+  deploy:
+    needs: [build]
+    run: cargo deploy
+"#;
+        let config = GitHubWorkflowConverter::convert_yaml("my-app", yaml);
+        assert_eq!(config.project.name, "my-app");
+        let default_pipe = config.pipelines.get("default").unwrap();
+        assert_eq!(default_pipe.jobs.len(), 2);
+        assert!(default_pipe.jobs.contains_key("build"));
+        assert!(default_pipe.jobs.contains_key("deploy"));
+        let deploy_job = default_pipe.jobs.get("deploy").unwrap();
+        assert_eq!(deploy_job.needs, vec!["build"]);
+    }
+
+    #[test]
+    fn test_gitlab_ci_converter() {
+        let yaml = r#"
+test_job:
+  script:
+    - cargo test --all
+build_job:
+  needs: [test_job]
+  script:
+    - cargo build --release
+"#;
+        let config = GitLabCIConverter::convert_yaml("gitlab-app", yaml);
+        assert_eq!(config.project.name, "gitlab-app");
+        let default_pipe = config.pipelines.get("default").unwrap();
+        assert_eq!(default_pipe.jobs.len(), 2);
+    }
+}

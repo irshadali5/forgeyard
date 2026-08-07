@@ -147,6 +147,7 @@ impl Executor for ContainerExecutor {
                         .to_string();
 
                     let _ = tx.send(LogEvent {
+                        run_id: None,
                         job_id: job_id.clone(),
                         sequence: seq,
                         stream: LogStream::Stdout,
@@ -175,6 +176,7 @@ impl Executor for ContainerExecutor {
                         .to_string();
 
                     let _ = tx.send(LogEvent {
+                        run_id: None,
                         job_id: job_id_err.clone(),
                         sequence: seq,
                         stream: LogStream::Stderr,

@@ -20,8 +20,15 @@ pub enum StorageError {
 
 impl MetadataStore {
     pub fn new(db_path: impl AsRef<Path>) -> Result<Self, StorageError> {
-        let path_str = db_path.as_ref().to_str().unwrap_or("forgeyard_metadata.db");
-        let conn = Database::open(path_str).map_err(|e| StorageError::Db(e.to_string()))?;
+        let raw_str = db_path.as_ref().to_str().unwrap_or("forgeyard_metadata.db");
+        let dsn = if raw_str == ":memory:" || raw_str == "memory" {
+            "memory://".to_string()
+        } else if !raw_str.contains("://") {
+            format!("file://{}", raw_str)
+        } else {
+            raw_str.to_string()
+        };
+        let conn = Database::open(&dsn).map_err(|e| StorageError::Db(e.to_string()))?;
         let store = Self { conn: Mutex::new(conn) };
         store.init_schema()?;
         Ok(store)
@@ -32,34 +39,37 @@ impl MetadataStore {
         
         let queries = [
             "CREATE TABLE IF NOT EXISTS runs (
-                id TEXT PRIMARY KEY,
+                pk_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )",
             "CREATE TABLE IF NOT EXISTS jobs (
-                id TEXT PRIMARY KEY,
+                pk_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id TEXT NOT NULL,
                 run_id TEXT NOT NULL,
                 name TEXT NOT NULL,
                 state TEXT NOT NULL,
                 fingerprint TEXT,
                 dependencies TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(run_id) REFERENCES runs(id)
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )",
             "CREATE TABLE IF NOT EXISTS cache_entries (
-                fingerprint TEXT PRIMARY KEY,
+                pk_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fingerprint TEXT NOT NULL,
                 job_id TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )",
             "CREATE TABLE IF NOT EXISTS logs (
+                pk_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 job_id TEXT NOT NULL,
                 sequence INTEGER NOT NULL,
                 stream TEXT NOT NULL,
                 timestamp TEXT NOT NULL,
-                message TEXT NOT NULL,
-                PRIMARY KEY (job_id, sequence)
+                message TEXT NOT NULL
             )",
             "CREATE TABLE IF NOT EXISTS provenance_records (
-                job_id TEXT PRIMARY KEY,
+                pk_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id TEXT NOT NULL,
                 fingerprint TEXT NOT NULL,
                 payload TEXT NOT NULL,
                 signature TEXT NOT NULL,
@@ -67,7 +77,8 @@ impl MetadataStore {
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )",
             "CREATE TABLE IF NOT EXISTS vector_embeddings (
-                id TEXT PRIMARY KEY,
+                pk_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vec_id TEXT NOT NULL,
                 entity_label TEXT NOT NULL,
                 embedding_vector TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -257,6 +268,7 @@ impl MetadataStore {
                 };
                 
                 events.push(forgeyard_model::LogEvent {
+                    run_id: None,
                     job_id,
                     sequence,
                     stream,
@@ -325,9 +337,63 @@ impl MetadataStore {
         let vec_str = serde_json::to_string(vector).map_err(|e| StorageError::Serialize(e.to_string()))?;
         let conn = self.conn.lock().map_err(|e| StorageError::Lock(e.to_string()))?;
         conn.execute(
-            "INSERT OR REPLACE INTO vector_embeddings (id, entity_label, embedding_vector) VALUES ($1, $2, $3)",
+            "INSERT INTO vector_embeddings (vec_id, entity_label, embedding_vector) VALUES ($1, $2, $3)",
             (id.to_string(), label.to_string(), vec_str),
         ).map_err(|e| StorageError::Db(e.to_string()))?;
         Ok(())
+    }
+
+    pub fn search_similar_vectors(&self, query_vector: &[f32], limit: usize) -> Result<Vec<(String, String, f32)>, StorageError> {
+        let conn = self.conn.lock().map_err(|e| StorageError::Lock(e.to_string()))?;
+        let rows = conn.query("SELECT vec_id, entity_label, embedding_vector FROM vector_embeddings", ())
+            .map_err(|e| StorageError::Db(e.to_string()))?;
+
+        let mut scored_results = Vec::new();
+
+        for row in rows {
+            if let Ok(r) = row {
+                let id = r.get::<String>(0).map_err(|e| StorageError::Db(e.to_string()))?;
+                let label = r.get::<String>(1).map_err(|e| StorageError::Db(e.to_string()))?;
+                let vec_str = r.get::<String>(2).map_err(|e| StorageError::Db(e.to_string()))?;
+                let vector: Vec<f32> = serde_json::from_str(&vec_str).unwrap_or_default();
+
+                if vector.len() == query_vector.len() && !vector.is_empty() {
+                    let dot_product: f32 = query_vector.iter().zip(vector.iter()).map(|(a, b)| a * b).sum();
+                    let norm_q: f32 = query_vector.iter().map(|a| a * a).sum::<f32>().sqrt();
+                    let norm_v: f32 = vector.iter().map(|b| b * b).sum::<f32>().sqrt();
+
+                    if norm_q > 0.0 && norm_v > 0.0 {
+                        let similarity = dot_product / (norm_q * norm_v);
+                        scored_results.push((id, label, similarity));
+                    }
+                }
+            }
+        }
+
+        scored_results.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+        scored_results.truncate(limit);
+
+        Ok(scored_results)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_vector_embedding_similarity_search() {
+        let store = MetadataStore::new(":memory:").expect("Failed to init memory temp store");
+        store.store_vector_embedding("vec-1", "Build Failed", &[1.0, 0.0, 0.0]).unwrap();
+        store.store_vector_embedding("vec-2", "Compilation Error", &[0.9, 0.1, 0.0]).unwrap();
+        store.store_vector_embedding("vec-3", "Unit Test Succeeded", &[0.0, 1.0, 0.0]).unwrap();
+
+        let query = vec![1.0, 0.0, 0.0];
+        let results = store.search_similar_vectors(&query, 2).unwrap();
+
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].0, "vec-1");
+        assert!(results[0].2 > 0.99);
+        assert_eq!(results[1].0, "vec-2");
     }
 }

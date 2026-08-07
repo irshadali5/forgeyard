@@ -107,7 +107,7 @@ async fn main() -> anyhow::Result<()> {
 
     let (log_tx, _) = tokio::sync::broadcast::channel(1024);
     
-    let quic_server = quic_server::QuicServer::start(settings.quic_port, token, cas.clone(), store.clone(), broker.clone(), log_tx.clone()).await?;
+    let quic_server = quic_server::QuicServer::start(settings.quic_port, token.clone(), cas.clone(), store.clone(), broker.clone(), log_tx.clone()).await?;
     let quic_server = Arc::new(quic_server);
 
     let toolchains = Arc::new(forgeyard_toolchains::ToolchainManager::new(cas.clone()));
@@ -131,9 +131,10 @@ async fn main() -> anyhow::Result<()> {
         active_runners: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
         secrets: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
         log_tx,
+        auth_token: token,
     };
 
-    let app = Router::new()
+    let protected_routes = Router::new()
         .route("/api/v1/run", post(handle_run))
         .route("/api/v1/intake", post(handle_intake))
         .route("/api/v1/status/:run_id", get(handle_status))
@@ -148,7 +149,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/metrics", get(handle_metrics))
         .route("/api/v1/graph", get(handle_graph))
         .route("/api/v1/search", post(handle_search))
-        .with_state(app_state.clone());
+        .layer(axum::middleware::from_fn_with_state(app_state.clone(), auth_middleware));
+
+    let app = protected_routes.with_state(app_state.clone());
 
     info!("Starting HTTP API server on 127.0.0.1:{}", settings.http_port);
     let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", settings.http_port)).await?;
@@ -167,6 +170,27 @@ struct AppState {
     active_runners: Arc<tokio::sync::RwLock<std::collections::HashMap<String, forgeyard_api::RunnerStatus>>>,
     secrets: Arc<tokio::sync::RwLock<std::collections::HashMap<String, String>>>,
     log_tx: tokio::sync::broadcast::Sender<LogEvent>,
+    auth_token: String,
+}
+
+async fn auth_middleware(
+    State(state): State<AppState>,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, axum::http::StatusCode> {
+    if state.auth_token.is_empty() || state.auth_token == "default_token" {
+        return Ok(next.run(req).await);
+    }
+
+    if let Some(auth_header) = req.headers().get(axum::http::header::AUTHORIZATION) {
+        if let Ok(auth_str) = auth_header.to_str() {
+            if auth_str == format!("Bearer {}", state.auth_token) || auth_str == state.auth_token {
+                return Ok(next.run(req).await);
+            }
+        }
+    }
+
+    Err(axum::http::StatusCode::UNAUTHORIZED)
 }
 
 async fn handle_run(
@@ -312,10 +336,13 @@ async fn handle_ws_logs(
     ws.on_upgrade(move |socket| stream_logs(socket, rx, run_id))
 }
 
-async fn stream_logs(mut socket: WebSocket, mut rx: tokio::sync::broadcast::Receiver<LogEvent>, _target_run: RunId) {
+async fn stream_logs(mut socket: WebSocket, mut rx: tokio::sync::broadcast::Receiver<LogEvent>, target_run: RunId) {
     while let Ok(event) = rx.recv().await {
-        // We'd ideally filter by target_run, but the LogEvent only has job_id.
-        // For now, we stream all logs or we need to look up if the job belongs to the run.
+        if let Some(r_id) = event.run_id {
+            if r_id != target_run {
+                continue;
+            }
+        }
         let msg = format!("[Job {}] {}", event.job_id.0, event.message);
         if socket.send(Message::Text(msg)).await.is_err() {
             break;

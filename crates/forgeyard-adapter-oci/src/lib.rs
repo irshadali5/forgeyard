@@ -50,16 +50,65 @@ impl OciAdapter {
             jobs,
         }
     }
+}
 
-    pub fn inject_into_config(
-        mut config: ForgeyardConfig,
-        workspace_root: impl AsRef<Path>,
-    ) -> ForgeyardConfig {
-        if Self::detect(workspace_root) && !config.pipelines.contains_key("oci_build") {
-            config
-                .pipelines
-                .insert("oci_build".to_string(), Self::generate_default_pipeline());
+pub struct OciBuildBuilder {
+    pub image_name: String,
+    pub tag: String,
+    pub platforms: Vec<String>,
+    pub dockerfile_path: String,
+}
+
+impl OciBuildBuilder {
+    pub fn new(image_name: &str, tag: &str) -> Self {
+        Self {
+            image_name: image_name.to_string(),
+            tag: tag.to_string(),
+            platforms: vec!["linux/amd64".to_string(), "linux/arm64".to_string()],
+            dockerfile_path: "Dockerfile".to_string(),
         }
-        config
+    }
+
+    pub fn to_command(&self) -> Vec<String> {
+        let mut cmd = vec![
+            "docker".to_string(),
+            "buildx".to_string(),
+            "build".to_string(),
+            "-f".to_string(),
+            self.dockerfile_path.clone(),
+            "-t".to_string(),
+            format!("{}:{}", self.image_name, self.tag),
+        ];
+
+        if !self.platforms.is_empty() {
+            cmd.push("--platform".to_string());
+            cmd.push(self.platforms.join(","));
+        }
+
+        cmd.push(".".to_string());
+        cmd
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_oci_adapter_detection() {
+        let dir = tempdir().unwrap();
+        assert!(!OciAdapter::detect(dir.path()));
+
+        std::fs::write(dir.path().join("Dockerfile"), b"FROM alpine").unwrap();
+        assert!(OciAdapter::detect(dir.path()));
+    }
+
+    #[test]
+    fn test_oci_build_builder() {
+        let builder = OciBuildBuilder::new("my-app", "v1.0.0");
+        let cmd = builder.to_command();
+        assert_eq!(cmd[0], "docker");
+        assert_eq!(cmd[6], "my-app:v1.0.0");
     }
 }
