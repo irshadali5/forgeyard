@@ -6,7 +6,7 @@
 
 > [!IMPORTANT]
 > ### 🤖 AI-Engineered & Human-Directed Development Notice
-> **Transparency Statement**: All code within this repository was generated and written with AI agent collaboration, but strictly guided, engineered, audited, and driven by **human architectural oversight, technical decision-making, security research, and domain expertise**. Every component, crate dependency, storage model, and control flow decision reflects deliberate human design choices for maximum performance, memory safety, and cross-platform reliability.
+> **Transparency Statement**: All code and material within this repository was generated and written with AI agent collaboration, but strictly guided, engineered, audited, and decided by **human architectural vision, contribution, security research, bug fixing, and deliberate design decisions**. Every component, crate dependency, storage model, and control flow decision reflects intentional human engineering for maximum performance, memory safety, security, and cross-platform reliability.
 
 ---
 
@@ -118,17 +118,18 @@ Security research and vulnerability disclosure are essential to the Forgeyard ec
 
 ---
 
-## ⚖️ Dual-License & Contribution Model
+## ⚖️ Dual-License & Comprehensive Contribution Terms
 
 Forgeyard is open-source software released under a **Dual Licensing Model**:
 
 1. **AGPLv3 (GNU Affero General Public License v3)**: 
    Free to use, inspect, and modify for non-commercial, open-source, educational, and personal projects.
 2. **Commercial / Enterprise License**: 
-   Required for commercial products, proprietary cloud services, or closed-source enterprise deployments that modify or integrate Forgeyard without disclosing source code under AGPLv3 terms. Contact the project founder for commercial license acquisition.
+   Required for business products, commercial applications, proprietary cloud services, or closed-source enterprise deployments that modify or integrate Forgeyard without disclosing source code under AGPLv3 terms. Contact the project founder for commercial licensing inquiries.
 
-### 📝 Contributor License Terms
-By contributing to this repository (via Pull Requests, Code Submissions, or Patches), **all contributors agree that their contributions are automatically licensed under this same Dual-License Model** (AGPLv3 + Commercial License), granting full dual-licensing authorization to the founder and lead maintainer of Forgeyard.
+### 📝 Founder & Maintainer Contribution Terms
+As intended by the project founder and lead maintainer:
+> **ANY AND ALL CONTRIBUTIONS**—including but not limited to code submissions, pull requests, patches, security research, vulnerability disclosures, bug reports, documentation, feature suggestions, or any other valuable and helpful input provided to this repository—**are automatically submitted and licensed under this Dual-License Model** (AGPLv3 + Commercial License), granting full dual-licensing rights, commercial distribution rights, and re-licensing authority to the founder and lead maintainer of Forgeyard.
 
 ---
 
