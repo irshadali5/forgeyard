@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
   /* HSL Tailored Dark Theme */
@@ -19,8 +19,9 @@
   --border-subtle: 240 10% 15%;
   --border-strong: 240 10% 25%;
   
-  --glass-bg: rgba(25, 25, 30, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-bg: rgba(20, 20, 25, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
 }
 
 * {
@@ -106,18 +107,33 @@ body {
 /* Glassmorphism Cards */
 .card {
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow: var(--glass-shadow);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease, border-color 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 50%; height: 100%;
+  background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0) 100%);
+  transform: skewX(-25deg);
+  transition: all 0.75s;
+}
+
+.card:hover::before {
+  left: 200%;
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.5);
   border-color: rgba(255, 255, 255, 0.15);
 }
 
@@ -132,6 +148,12 @@ body {
   font-size: 2.5rem;
   font-weight: 700;
   color: hsl(var(--accent-primary));
+}
+
+.grid-cols-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
 }
 
 .grid-cols-3 {
@@ -244,3 +266,124 @@ body {
 .delay-100 { animation-delay: 100ms; opacity: 0; }
 .delay-200 { animation-delay: 200ms; opacity: 0; }
 .delay-300 { animation-delay: 300ms; opacity: 0; }
+.delay-400 { animation-delay: 400ms; opacity: 0; }
+
+/* Semantic Search */
+.search-container {
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.search-bar-wrapper {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    margin-bottom: 2rem;
+    border-radius: 12px;
+}
+
+.search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    outline: none;
+}
+
+.search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.search-btn {
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+}
+
+.search-results {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.result-card {
+    padding: 1.5rem;
+    border-radius: 12px;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.result-job {
+    font-weight: 600;
+    color: var(--accent-primary);
+}
+
+.log-snippet {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    background: hsla(0, 0%, 0%, 0.3);
+    padding: 1rem;
+    border-radius: 8px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.error-toast {
+    background: hsla(0, 100%, 50%, 0.2);
+    color: #ff6b6b;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--bg-base));
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--bg-surface-elevated));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--accent-primary));
+}
+
+/* Pulse Dot Animation */
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: hsl(var(--accent-success));
+  box-shadow: 0 0 0 0 rgba(72, 187, 120, 0.7);
+  animation: pulse 2s infinite;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(72, 187, 120, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(72, 187, 120, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(72, 187, 120, 0);
+  }
+}

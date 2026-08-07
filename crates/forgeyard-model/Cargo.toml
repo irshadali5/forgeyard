@@ -8,3 +8,4 @@ uuid = { workspace = true }
 serde = { workspace = true }
 camino = { workspace = true }
 bytes = { workspace = true }
+serde_json = { workspace = true }

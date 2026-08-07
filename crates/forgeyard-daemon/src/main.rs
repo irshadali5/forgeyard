@@ -5,20 +5,27 @@ use forgeyard_cas::CasEngine;
 use forgeyard_config::{ForgeyardConfig, ProjectConfig};
 use forgeyard_model::{JobState, RunId};
 use forgeyard_pipeline::PipelineCompiler;
-use forgeyard_runner::LocalRunner;
 use forgeyard_storage::MetadataStore;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tracing::{error, info, Level};
 use tracing_subscriber::FmtSubscriber;
+pub mod intake;
+mod semantic;
+
+use semantic::SemanticIndexer;
 use axum::{
     routing::{get, post},
     Router,
     Json,
     extract::{State, Path},
+    response::IntoResponse,
 };
+use axum::extract::ws::{WebSocketUpgrade, WebSocket, Message};
 use forgeyard_api::{SubmitRunRequest, SubmitRunResponse, GetStatusResponse, GetLogsResponse, JobStatusInfo};
+use forgeyard_model::LogEvent;
 use uuid::Uuid;
+use serde::{Serialize, Deserialize};
 
 mod quic_server;
 
@@ -53,7 +60,6 @@ impl<W: std::io::Write> std::io::Write for RedactingWriter<W> {
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let broker = Arc::new(forgeyard_secrets::SecretBroker::new());
-    let broker_clone = broker.clone();
 
     let redact_token = args.token.clone();
     let make_writer = move || {
@@ -99,27 +105,50 @@ async fn main() -> anyhow::Result<()> {
 
     // Broker already instantiated above
 
-    let quic_server = quic_server::QuicServer::start(settings.quic_port, token, cas.clone(), store.clone(), broker.clone()).await?;
+    let (log_tx, _) = tokio::sync::broadcast::channel(1024);
+    
+    let quic_server = quic_server::QuicServer::start(settings.quic_port, token, cas.clone(), store.clone(), broker.clone(), log_tx.clone()).await?;
     let quic_server = Arc::new(quic_server);
 
+    let toolchains = Arc::new(forgeyard_toolchains::ToolchainManager::new(cas.clone()));
+    let semantic_indexer = SemanticIndexer::new();
+    
+    // Spawn a background task to index incoming logs
+    let mut log_rx = log_tx.subscribe();
+    let indexer_clone = semantic_indexer.clone();
+    tokio::spawn(async move {
+        while let Ok(event) = log_rx.recv().await {
+            indexer_clone.index_log(&event.job_id.0.to_string(), event).await;
+        }
+    });
+
     let app_state = AppState {
+        cas: cas.clone(),
         store: store.clone(),
         quic_server: quic_server.clone(),
+        toolchains: toolchains.clone(),
+        semantic_indexer: semantic_indexer.clone(),
         active_runners: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
         secrets: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+        log_tx,
     };
 
     let app = Router::new()
         .route("/api/v1/run", post(handle_run))
+        .route("/api/v1/intake", post(handle_intake))
         .route("/api/v1/status/:run_id", get(handle_status))
         .route("/api/v1/logs/:run_id", get(handle_logs))
+        .route("/api/v1/logs/stream/:run_id", get(handle_ws_logs))
         .route("/api/v1/runners/register", post(handle_register_runner))
         .route("/api/v1/runners/telemetry", post(handle_telemetry))
         .route("/api/v1/runners", get(handle_list_runners))
         .route("/api/v1/runs", get(handle_list_runs))
         .route("/api/v1/secrets", post(handle_create_secret))
         .route("/api/v1/secrets/list", get(handle_list_secrets))
-        .with_state(app_state);
+        .route("/api/v1/metrics", get(handle_metrics))
+        .route("/api/v1/graph", get(handle_graph))
+        .route("/api/v1/search", post(handle_search))
+        .with_state(app_state.clone());
 
     info!("Starting HTTP API server on 127.0.0.1:{}", settings.http_port);
     let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", settings.http_port)).await?;
@@ -130,33 +159,88 @@ async fn main() -> anyhow::Result<()> {
 
 #[derive(Clone)]
 struct AppState {
+    cas: Arc<forgeyard_cas::CasEngine>,
     store: Arc<MetadataStore>,
     quic_server: Arc<quic_server::QuicServer>,
+    toolchains: Arc<forgeyard_toolchains::ToolchainManager>,
+    semantic_indexer: SemanticIndexer,
     active_runners: Arc<tokio::sync::RwLock<std::collections::HashMap<String, forgeyard_api::RunnerStatus>>>,
     secrets: Arc<tokio::sync::RwLock<std::collections::HashMap<String, String>>>,
+    log_tx: tokio::sync::broadcast::Sender<LogEvent>,
 }
 
 async fn handle_run(
     State(state): State<AppState>,
     Json(payload): Json<SubmitRunRequest>,
-) -> Json<SubmitRunResponse> {
-    info!("Received run request for workspace: {}", payload.workspace_path);
-    let run_id = RunId::new();
+) -> Result<Json<SubmitRunResponse>, axum::http::StatusCode> {
+    let run_id = RunId(uuid::Uuid::new_v4());
     
     let store = state.store.clone();
     let quic_server = state.quic_server.clone();
+    let toolchains = state.toolchains.clone();
     
-    tokio::spawn(async move {
+    let handle = tokio::spawn(async move {
+        // Resolve toolchains before pipeline execution
+        if let Err(e) = toolchains.resolve("nodejs", "20.10.0").await {
+            error!("Failed to resolve toolchains: {:?}", e);
+        }
+
         if let Err(e) = execute_pipeline(store, quic_server, &payload.workspace_path, run_id).await {
             error!("Pipeline execution failed: {:?}", e);
         }
     });
+    let _ = handle.await;
 
-    Json(SubmitRunResponse {
+    Ok(Json(SubmitRunResponse {
         run_id: run_id.0.to_string(),
         status: "Accepted".to_string(),
         expected_jobs: 0,
-    })
+    }))
+}
+
+#[derive(Deserialize)]
+pub struct SearchRequest {
+    query: String,
+}
+
+#[derive(Serialize)]
+pub struct SearchResponse {
+    results: Vec<LogEvent>,
+}
+
+async fn handle_search(
+    State(state): State<AppState>,
+    Json(payload): Json<SearchRequest>,
+) -> Result<Json<SearchResponse>, axum::http::StatusCode> {
+    let results = state.semantic_indexer.search(&payload.query).await;
+    Ok(Json(SearchResponse { results }))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct IntakeRequest {
+    pub source: forgeyard_model::SourceInput,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct IntakeResponse {
+    pub digest: String,
+}
+
+async fn handle_intake(
+    State(state): State<AppState>,
+    Json(payload): Json<IntakeRequest>,
+) -> Result<Json<IntakeResponse>, axum::http::StatusCode> {
+    let cas = state.cas.clone();
+    
+    match intake::IntakePipeline::process(payload.source, cas).await {
+        Ok(digest) => Ok(Json(IntakeResponse {
+            digest: hex::encode(digest.bytes),
+        })),
+        Err(e) => {
+            tracing::error!("Intake failed: {:?}", e);
+            Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }
 
 async fn handle_status(
@@ -174,6 +258,7 @@ async fn handle_status(
                 start_time: None,
                 end_time: None,
                 runner_id: None,
+                dependencies: job.dependencies,
             });
         }
     }
@@ -202,7 +287,8 @@ async fn handle_logs(
 
     if let Ok(jobs) = state.store.get_jobs_for_run(run_id) {
         for job in jobs {
-            if let Ok(events) = state.store.get_logs_for_job(job.id) {
+            let parsed_job_id = forgeyard_model::JobId(Uuid::parse_str(&job.id).unwrap_or_default());
+            if let Ok(events) = state.store.get_logs_for_job(parsed_job_id) {
                 for event in events {
                     logs_out.push(format!("[{}] {}", job.name, event.message));
                 }
@@ -214,6 +300,27 @@ async fn handle_logs(
         run_id: run_id_str,
         logs: logs_out,
     })
+}
+
+async fn handle_ws_logs(
+    ws: WebSocketUpgrade,
+    Path(run_id_str): Path<String>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let run_id = RunId(Uuid::parse_str(&run_id_str).unwrap_or_default());
+    let rx = state.log_tx.subscribe();
+    ws.on_upgrade(move |socket| stream_logs(socket, rx, run_id))
+}
+
+async fn stream_logs(mut socket: WebSocket, mut rx: tokio::sync::broadcast::Receiver<LogEvent>, _target_run: RunId) {
+    while let Ok(event) = rx.recv().await {
+        // We'd ideally filter by target_run, but the LogEvent only has job_id.
+        // For now, we stream all logs or we need to look up if the job belongs to the run.
+        let msg = format!("[Job {}] {}", event.job_id.0, event.message);
+        if socket.send(Message::Text(msg)).await.is_err() {
+            break;
+        }
+    }
 }
 
 async fn handle_register_runner(
@@ -291,12 +398,64 @@ async fn handle_list_secrets(
     })
 }
 
+#[derive(Serialize, Deserialize)]
+struct PipelineMetrics {
+    total_runs: usize,
+    total_jobs: usize,
+    total_logs: usize,
+    cache_hit_ratio: f64,
+}
+
+async fn handle_metrics(
+    State(state): State<AppState>,
+) -> Json<PipelineMetrics> {
+    if let Ok((runs, jobs, logs, hits)) = state.store.get_pipeline_performance_metrics() {
+        let ratio = if jobs > 0 { (hits as f64 / jobs as f64) * 100.0 } else { 0.0 };
+        Json(PipelineMetrics {
+            total_runs: runs,
+            total_jobs: jobs,
+            total_logs: logs,
+            cache_hit_ratio: ratio,
+        })
+    } else {
+        Json(PipelineMetrics {
+            total_runs: 0,
+            total_jobs: 0,
+            total_logs: 0,
+            cache_hit_ratio: 0.0,
+        })
+    }
+}
+
+#[derive(Serialize)]
+struct GraphSummaryResponse {
+    summary: String,
+}
+
+async fn handle_graph() -> Json<GraphSummaryResponse> {
+    // Call the analyzer directly on the current directory
+    let result = match forgeyard_analyzer::graph::extract_knowledge_graph(std::path::PathBuf::from(".")).await {
+        Ok(res) => res,
+        Err(_) => graphify_core::model::ExtractionResult {
+            nodes: Vec::new(),
+            edges: Vec::new(),
+            hyperedges: Vec::new(),
+        },
+    };
+    
+    let summary = forgeyard_analyzer::graph::generate_token_efficient_summary(&result);
+    Json(GraphSummaryResponse { summary })
+}
+
 async fn execute_pipeline(
     store: Arc<MetadataStore>,
     quic_server: Arc<quic_server::QuicServer>,
     workspace_path: &str,
     run_id: RunId,
 ) -> anyhow::Result<()> {
+    let exporter = forgeyard_events::TelemetryExporter::new("forgeyard-daemon", "http://localhost:4317");
+    let pipeline_span = exporter.start_span("execute_pipeline", forgeyard_events::SpanKind::Server, None);
+
     let config_path = format!("{}/forgeyard.ron", workspace_path);
     let mut config = if std::path::Path::new(&config_path).exists() {
         ForgeyardConfig::load(&config_path).unwrap_or_else(|_| ForgeyardConfig {
@@ -383,6 +542,7 @@ async fn execute_pipeline(
                         &job.name,
                         JobState::Succeeded,
                         Some(&fingerprint),
+                        &job.dependencies,
                     )
                     .unwrap_or_else(|e| {
                         tracing::error!("Failed to update job status: {}", e);
@@ -397,6 +557,7 @@ async fn execute_pipeline(
                     &job.name,
                     JobState::Created,
                     Some(&fingerprint),
+                    &job.dependencies,
                 )
                 .unwrap_or_else(|e| {
                     tracing::error!("Failed to send event: {}", e);
@@ -418,10 +579,21 @@ async fn execute_pipeline(
                 // Supply Chain Security: Sign Provenance
                 let signer = forgeyard_signing::LocalEd25519Signer::generate_new("daemon_key_v1".to_string());
                 use forgeyard_signing::Signer;
+                let generator = forgeyard_provenance::BasicProvenanceGenerator {
+                    workspace_root: ".".to_string(),
+                    builder_id: "forgeyard-daemon-v1".to_string(),
+                };
+                let slsa_stmt = generator.generate_slsa_statement(
+                    &job.name,
+                    &fingerprint,
+                    &job.id.0.to_string(),
+                    std::collections::BTreeMap::new(),
+                );
                 let prov = forgeyard_model::Provenance {
                     job_id: job.id,
                     fingerprint: fingerprint.clone(),
                     artifacts: job.outputs.clone(),
+                    statement: Some(slsa_stmt),
                 };
                 let signed_prov = signer.sign_provenance(prov);
                 let _ = store.insert_provenance(&signed_prov);
@@ -430,6 +602,7 @@ async fn execute_pipeline(
         }
     }
 
+    exporter.finish_span(pipeline_span);
     info!("Pipeline execution completed successfully.");
     Ok(())
 }

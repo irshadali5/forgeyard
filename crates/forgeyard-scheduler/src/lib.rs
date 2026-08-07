@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::time::Instant;
 use uuid::Uuid;
 
+#[allow(dead_code)]
 struct QueuedJob {
     pub job: JobIr,
     pub enqueued_at: Instant,
@@ -67,6 +68,9 @@ impl LocalScheduler {
     }
 
     pub fn matches_requirements(runner: &RunnerDescriptor, reqs: &CapabilityExpression) -> bool {
+        if runner.health != forgeyard_model::scheduler::RunnerHealth::Healthy {
+            return false;
+        }
         for req in &reqs.required {
             if !runner.capabilities.contains(req) {
                 return false;
@@ -75,10 +79,16 @@ impl LocalScheduler {
         true
     }
 
-    pub fn score_runner(&self, runner: &RunnerDescriptor, reqs: &CapabilityExpression, wait_time_secs: u64) -> i32 {
+    pub fn score_runner(
+        &self,
+        runner: &RunnerDescriptor,
+        job: &JobIr,
+        wait_time_secs: u64,
+    ) -> i32 {
+        let reqs = &job.runner_requirements;
         let mut score = 0;
-        
-        // Exact host match score
+
+        // 1. Exact host match score
         for req in &reqs.required {
             match req {
                 Capability::Os(os) => {
@@ -91,19 +101,41 @@ impl LocalScheduler {
                         score += 50;
                     }
                 }
+                Capability::Rust(toolchain) => {
+                    if runner.installed_toolchains.contains(toolchain) {
+                        score += 30; // Warm toolchain score
+                    }
+                }
                 _ => {}
             }
         }
-        
-        // Resource capacity (more capacity = better)
+
+        // 2. Cache locality score
+        for (_input_name, digest) in &job.inputs {
+            let hex_digest = hex::encode(digest.bytes);
+            if runner.cached_fingerprints.contains(&hex_digest) {
+                score += 40;
+                break;
+            }
+        }
+
+        // 3. Resource capacity
         score += (runner.resources.cpu_shares / 1024) as i32 * 10;
         score += (runner.resources.memory_bytes / 1024 / 1024 / 1024) as i32 * 10;
-        
-        // Load penalty (prefer less loaded runners)
+
+        // 4. Trusted runner score
+        if runner.trust_level == forgeyard_model::scheduler::TrustLevel::Trusted {
+            score += 50;
+        }
+
+        // 5. Load penalty
         let current_load = *self.runner_load.get(&runner.id).unwrap_or(&0);
         score -= (current_load as i32) * 30;
 
-        // Starvation prevention: slightly boost based on wait time so older jobs find a runner
+        // 6. Network transfer cost penalty
+        score -= (runner.network_latency_ms as i32) * 2;
+
+        // 7. Starvation prevention
         score += (wait_time_secs / 10) as i32;
 
         score
@@ -119,7 +151,7 @@ impl LocalScheduler {
 
             for (runner_id, runner) in &self.runners {
                 if Self::matches_requirements(runner, &q_job.job.runner_requirements) {
-                    let score = self.score_runner(runner, &q_job.job.runner_requirements, wait_time);
+                    let score = self.score_runner(runner, &q_job.job, wait_time);
                     if score > best_score {
                         best_score = score;
                         best_runner = Some(*runner_id);
@@ -153,5 +185,217 @@ impl LocalScheduler {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::{BTreeMap, BTreeSet};
+    use forgeyard_model::scheduler::*;
+    use forgeyard_model::*;
+    use std::time::Duration;
+
+    #[test]
+    fn test_advanced_capability_scoring() {
+        let mut scheduler = LocalScheduler::new();
+
+        let runner_a_id = RunnerId(Uuid::new_v4());
+        let runner_b_id = RunnerId(Uuid::new_v4());
+
+        let runner_a = RunnerDescriptor {
+            id: runner_a_id,
+            host: HostPlatform {
+                os: OperatingSystem::Linux,
+                arch: Architecture::X86_64,
+            },
+            capabilities: BTreeSet::from([
+                Capability::Os(OperatingSystem::Linux),
+                Capability::Arch(Architecture::X86_64),
+                Capability::Rust("nightly".to_string()),
+            ]),
+            resources: ResourceCapacity {
+                cpu_shares: 4096,
+                memory_bytes: 16 * 1024 * 1024 * 1024,
+            },
+            trust_level: TrustLevel::Trusted,
+            labels: BTreeMap::new(),
+            health: RunnerHealth::Healthy,
+            cached_fingerprints: BTreeSet::from([hex::encode([1u8; 32])]),
+            installed_toolchains: BTreeSet::from(["nightly".to_string()]),
+            network_latency_ms: 5,
+        };
+
+        let runner_b = RunnerDescriptor {
+            id: runner_b_id,
+            host: HostPlatform {
+                os: OperatingSystem::Linux,
+                arch: Architecture::X86_64,
+            },
+            capabilities: BTreeSet::from([
+                Capability::Os(OperatingSystem::Linux),
+                Capability::Arch(Architecture::X86_64),
+            ]),
+            resources: ResourceCapacity {
+                cpu_shares: 1024,
+                memory_bytes: 2 * 1024 * 1024 * 1024,
+            },
+            trust_level: TrustLevel::Untrusted,
+            labels: BTreeMap::new(),
+            health: RunnerHealth::Unreachable,
+            cached_fingerprints: BTreeSet::new(),
+            installed_toolchains: BTreeSet::new(),
+            network_latency_ms: 200,
+        };
+
+        scheduler.register_runner(runner_a.clone());
+        scheduler.register_runner(runner_b.clone());
+
+        let mut inputs = BTreeMap::new();
+        inputs.insert("src".to_string(), Digest { bytes: [1; 32] });
+
+        let job = JobIr {
+            id: JobId(Uuid::new_v4()),
+            name: "build-target".to_string(),
+            dependencies: vec![],
+            runner_requirements: CapabilityExpression {
+                required: BTreeSet::from([
+                    Capability::Os(OperatingSystem::Linux),
+                    Capability::Arch(Architecture::X86_64),
+                    Capability::Rust("nightly".to_string()),
+                ]),
+            },
+            execution: ExecutionSpec::ShellScript {
+                script: "cargo build".to_string(),
+            },
+            timeout: Duration::from_secs(60),
+            cache: CachePolicy::Disabled,
+            inputs,
+            outputs: vec![],
+            secrets: vec![],
+        };
+
+        assert!(LocalScheduler::matches_requirements(&runner_a, &job.runner_requirements));
+        assert!(!LocalScheduler::matches_requirements(&runner_b, &job.runner_requirements));
+
+        let score_a = scheduler.score_runner(&runner_a, &job, 0);
+        assert!(score_a > 100);
+
+        scheduler.enqueue(job);
+        let scheduled = scheduler.schedule_next();
+        assert!(scheduled.is_some());
+        let (_job, matched_runner) = scheduled.unwrap();
+        assert_eq!(matched_runner, runner_a_id);
+    }
+}
+
+pub struct RunnerClusterNode {
+    pub descriptor: RunnerDescriptor,
+    pub last_heartbeat_timestamp_ms: u64,
+    pub active_jobs: Vec<Uuid>,
+}
+
+pub struct RunnerClusterRegistry {
+    nodes: BTreeMap<RunnerId, RunnerClusterNode>,
+    heartbeat_timeout_ms: u64,
+}
+
+impl RunnerClusterRegistry {
+    pub fn new(heartbeat_timeout_ms: u64) -> Self {
+        Self {
+            nodes: BTreeMap::new(),
+            heartbeat_timeout_ms,
+        }
+    }
+
+    pub fn register_or_update(&mut self, descriptor: RunnerDescriptor) {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+
+        let node = self.nodes.entry(descriptor.id).or_insert_with(|| RunnerClusterNode {
+            descriptor: descriptor.clone(),
+            last_heartbeat_timestamp_ms: now,
+            active_jobs: Vec::new(),
+        });
+        node.descriptor = descriptor;
+        node.last_heartbeat_timestamp_ms = now;
+    }
+
+    pub fn record_heartbeat(&mut self, runner_id: RunnerId, active_jobs: Vec<Uuid>) -> bool {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+
+        if let Some(node) = self.nodes.get_mut(&runner_id) {
+            node.last_heartbeat_timestamp_ms = now;
+            node.active_jobs = active_jobs;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn evict_stale_runners(&mut self) -> Vec<RunnerId> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+
+        let timeout = self.heartbeat_timeout_ms;
+        let mut evicted = Vec::new();
+
+        self.nodes.retain(|id, node| {
+            if now.saturating_sub(node.last_heartbeat_timestamp_ms) > timeout {
+                evicted.push(*id);
+                false
+            } else {
+                true
+            }
+        });
+
+        evicted
+    }
+
+    pub fn healthy_nodes(&self) -> Vec<&RunnerDescriptor> {
+        self.nodes.values().map(|n| &n.descriptor).collect()
+    }
+}
+
+#[cfg(test)]
+mod cluster_tests {
+    use super::*;
+    use forgeyard_model::{OperatingSystem, Architecture};
+    use forgeyard_model::scheduler::{HostPlatform, ResourceCapacity, RunnerHealth, TrustLevel};
+    use std::collections::{BTreeMap, BTreeSet};
+
+    #[test]
+    fn test_cluster_registry_heartbeat_expiry() {
+        let mut registry = RunnerClusterRegistry::new(100);
+        let id1 = RunnerId(Uuid::new_v4());
+        let descriptor = RunnerDescriptor {
+            id: id1,
+            host: HostPlatform { os: OperatingSystem::Linux, arch: Architecture::X86_64 },
+            capabilities: BTreeSet::new(),
+            resources: ResourceCapacity { cpu_shares: 4096, memory_bytes: 8 * 1024 * 1024 * 1024 },
+            trust_level: TrustLevel::Trusted,
+            labels: BTreeMap::new(),
+            health: RunnerHealth::Healthy,
+            cached_fingerprints: BTreeSet::new(),
+            installed_toolchains: BTreeSet::new(),
+            network_latency_ms: 10,
+        };
+
+        registry.register_or_update(descriptor);
+        assert_eq!(registry.healthy_nodes().len(), 1);
+
+        // Record active heartbeat
+        assert!(registry.record_heartbeat(id1, vec![]));
+
+        // Immediately evict - should retain
+        let evicted = registry.evict_stale_runners();
+        assert!(evicted.is_empty());
     }
 }

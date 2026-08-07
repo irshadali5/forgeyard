@@ -2,6 +2,7 @@ use camino::Utf8PathBuf;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::time::Duration;
+use std::path::PathBuf;
 use uuid::Uuid;
 
 macro_rules! id_type {
@@ -168,7 +169,7 @@ pub enum Trigger {
     GitCommit,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Digest {
     pub bytes: [u8; 32],
 }
@@ -200,6 +201,25 @@ pub enum SecretDelivery {
     File,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct OutputSpec {
+    pub name: String,
+    pub path_pattern: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum SourceInput {
+    WorkingDirectory(PathBuf),
+    GitRepository {
+        url: String,
+        revision: Option<String>,
+    },
+    Archive(PathBuf),
+    Snapshot {
+        digest: Digest,
+    },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecretReference {
     pub name: String,
@@ -208,11 +228,70 @@ pub struct SecretReference {
     pub delivery: SecretDelivery,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ResourceDescriptor {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub digest: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlsaBuildDefinition {
+    #[serde(rename = "buildType")]
+    pub build_type: String,
+    #[serde(rename = "externalParameters")]
+    pub external_parameters: serde_json::Value,
+    #[serde(rename = "internalParameters", skip_serializing_if = "Option::is_none")]
+    pub internal_parameters: Option<serde_json::Value>,
+    #[serde(rename = "resolvedDependencies", skip_serializing_if = "Vec::is_empty", default)]
+    pub resolved_dependencies: Vec<ResourceDescriptor>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlsaBuilder {
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlsaRunMetadata {
+    #[serde(rename = "invocationId")]
+    pub invocation_id: String,
+    #[serde(rename = "startedOn", skip_serializing_if = "Option::is_none")]
+    pub started_on: Option<String>,
+    #[serde(rename = "finishedOn", skip_serializing_if = "Option::is_none")]
+    pub finished_on: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlsaRunDetails {
+    pub builder: SlsaBuilder,
+    pub metadata: SlsaRunMetadata,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlsaProvenancePredicate {
+    #[serde(rename = "buildDefinition")]
+    pub build_definition: SlsaBuildDefinition,
+    #[serde(rename = "runDetails")]
+    pub run_details: SlsaRunDetails,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InTotoStatement {
+    #[serde(rename = "_type")]
+    pub statement_type: String,
+    pub subject: Vec<ResourceDescriptor>,
+    #[serde(rename = "predicateType")]
+    pub predicate_type: String,
+    pub predicate: SlsaProvenancePredicate,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Provenance {
     pub job_id: JobId,
     pub fingerprint: String,
     pub artifacts: Vec<String>,
+    pub statement: Option<InTotoStatement>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -220,6 +299,7 @@ pub struct SignedProvenance {
     pub provenance: Provenance,
     pub signature: String,
     pub key_id: String,
+    pub statement: Option<InTotoStatement>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -241,3 +321,42 @@ pub struct DetectionEvidence {
 }
 
 pub mod scheduler;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SymbolKind {
+    Function,
+    Method,
+    Struct,
+    Enum,
+    Trait,
+    Module,
+    Variable,
+    Interface,
+    Class,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SymbolInfo {
+    pub symbol_id: String,
+    pub label: String,
+    pub kind: SymbolKind,
+    pub file_path: String,
+    pub line: u32,
+    pub signature: Option<String>,
+    pub is_public: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CallEdge {
+    pub caller_id: String,
+    pub callee_id: String,
+    pub line_number: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CodeGraph {
+    pub symbols: Vec<SymbolInfo>,
+    pub edges: Vec<CallEdge>,
+    pub total_nodes: usize,
+    pub total_edges: usize,
+}

@@ -4,7 +4,7 @@ use forgeyard_model::{ExecutionSpec, JobIr};
 use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
-use tracing::{error, info, warn, debug};
+use tracing::{error, info, warn};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::sleep;

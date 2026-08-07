@@ -7,7 +7,7 @@ use std::time::SystemTime;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::mpsc::Sender;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 /// A Linux Sandbox Executor utilizing `bwrap` (Bubblewrap).
 /// Provides unprivileged namespace isolation for build jobs.

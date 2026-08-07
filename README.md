@@ -28,14 +28,21 @@ Engineered entirely in Rust, Forgeyard replaces heavy, external database depende
 - **L1 In-Memory Cache (`quick-cache`)**: Hyper-concurrent, low-lock-contention RAM cache for fast memory access.
 - **L2 Persistent Disk Store (`redb`)**: Copy-on-Write ACID B-Tree key-value database for durable blob storage, configuration state, and task artifacts with zero crash corruption risk.
 
-### 🧠 AST Knowledge Graph Extraction (`Graphify`)
-- Built-in AST analysis using `graphify-core` and `graphify-extract` powered by Tree-sitter parsers.
-- Dynamically extracts workspace relationships, call graphs, import dependencies, and symbol definitions into a minimal token footprint tailored for Large Language Model (LLM) context windows.
+### 🧠 RTK Token Compression & CodeGraph Engine
+- **Signature Extraction & Context Trimming (`RtkCompressor`)**: Extracts public function signatures, struct layouts, and cross-file `CallEdge` relationships while trimming internal logic to fit strictly within AI LLM context windows.
+- **Unified CodeGraph Taxonomy**: Symbol classification across `Function`, `Method`, `Struct`, `Trait`, `Enum`, `Module`, and `Interface`.
 
-### 🔀 Concurrency & Data Parallelism
-- Integrated **`rayon`** thread pools wrapped in Tokio async tasks for multi-threaded file detection, parallel code parsing, and high-throughput job dependency scheduling.
+### 📊 OpenTelemetry & Distributed Observability Tracing
+- **Span Lifecycle Management (`OtelSpan` & `TelemetryExporter`)**: Generates structured distributed trace spans (`Server`, `Client`, `Internal`) with parent-child trace propagation for job scheduling, runner leasing, execution timing, and CAS transfer latency.
+
+### 🛡️ DevSecOps Vulnerability & Compliance Scanning
+- **Automated CVE & Vulnerability Policy (`VulnerabilityPolicy`)**: Evaluates `trivy` container scans and `cargo-audit` dependency advisories against customizable severity thresholds (`Low`, `Medium`, `High`, `Critical`) and enforces security build gates.
+
+### 🌐 Multi-Cloud Remote Worker Cluster & NAT Traversal
+- **Persistent Edge Worker Tunnels (`RunnerClusterRegistry`)**: Coordinates distributed edge build runners operating behind firewalls/NAT via persistent QUIC connections, featuring automated heartbeat tracking and stale worker eviction.
 
 ### 🔒 Enterprise Security, Signing & SLSA Provenance
+- **SLSA v1.0 Provenance Attestations**: Generates standard `in-toto` provenance statements detailing environment variables, git commits, and runner IDs.
 - **Ed25519 Cryptographic Signing (`ed25519-dalek`)**: Digitally signs build provenance and execution records (`SignedProvenance`).
 - **Security Policy Engine (`forgeyard-policy`)**: Analyzes job execution specifications against command safety rules, privilege constraints, and forbidden pattern filters.
 - **Log Sanitization & Redaction**: Built-in streaming log redactor preventing token and secret leaks.

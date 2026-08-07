@@ -3038,3 +3038,19 @@ Deliver:
 - Utilize built-in vector and semantic capabilities for performant, reliable data querying
 - Integrate quick-cache for high-throughput, concurrent in-memory caching
 - Integrate fjall for durable, embedded LSM-tree disk caching
+
+## Phase 14: Next-Generation Capabilities & Distributed Scale
+
+The following phases detail the must-have enhancements and advanced polish items identified after the core architecture reached production readiness.
+
+### Deliverables (Must Add)
+- **Distributed CAS (Content-Addressable Storage) Syncing:** Extend the QUIC protocol to support bi-directional streaming of CAS chunks between the daemon and remote agents.
+- **Live WebSocket Log Streaming:** Add an `axum` WebSocket route in `forgeyard-daemon` subscribing to `tokio::sync::broadcast` for real-time log feedback in `forgeyard-ui`.
+- **Robust Git Repository Intake & Digesting:** Integrate `git2` to clone repositories into an isolated directory, calculate a Merkle tree of files, and safely isolate intake before DAG scheduling.
+- **Hermetic Toolchain Management:** Build a toolchain manager to auto-download Rust versions, NDKs, and Xcode SDK versions directly into the runner's CAS.
+
+### Deliverables (Should Add - Advanced Polish)
+- **Semantic AI Codebase & Log Search:** Unified Semantic Search querying `Stoolap`'s vector database, feeding job logs and AST data to an LLM or semantic index for rapid debugging.
+- **Interactive Visual Build Graph (DAG):** Integrate D3.js or a Dioxus native canvas to render live node-status updates for the complex multi-target build matrices.
+- **SLSA-Compliant Provenance Attestations:** Upgrade `forgeyard-provenance` to output standard `in-toto` (SLSA v1.0) JSON predicates detailing the exact environment variables, runner ID, and git commit, wrapped in an Ed25519 signature.
+- **Advanced Capability Scheduling Algorithm:** Implement the scoring algorithm from section 13.3 (CPU/memory resources, cache locality, network transfer costs).

@@ -61,7 +61,7 @@ impl Publisher for LocalDirectoryPublisher {
 
     async fn publish(
         &self,
-        plan: PublishPlan,
+        _plan: PublishPlan,
         _idempotency_key: IdempotencyKey,
     ) -> Result<PublishResult, PublishError> {
         let mut artifact_urls = Vec::new();

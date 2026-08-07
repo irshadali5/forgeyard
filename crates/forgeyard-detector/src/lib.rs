@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct CargoToml {
     package: Option<Package>,
     workspace: Option<Workspace>,
@@ -13,11 +14,13 @@ struct CargoToml {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct Package {
     name: String,
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct Workspace {
     members: Option<Vec<String>>,
 }

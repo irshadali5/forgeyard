@@ -4,4 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0"
+tokio = { workspace = true, features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+tar = "0.4"
+flate2 = "1.0"
+tempfile = "3.10"
+tracing = "0.1"
+forgeyard-cas = { path = "../forgeyard-cas" }
+forgeyard-model = { path = "../forgeyard-model" }
 async-trait = { workspace = true }
+hex.workspace = true

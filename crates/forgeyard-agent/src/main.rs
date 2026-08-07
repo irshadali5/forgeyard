@@ -13,8 +13,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::time::{sleep, Duration};
-use tracing::{error, info, warn, debug};
+use tracing::{info, debug};
 use uuid::Uuid;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use futures::{StreamExt, SinkExt};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 use bytes::Bytes;
@@ -154,12 +155,37 @@ async fn main() -> Result<()> {
     info!("Connecting to Forgeyard Daemon at {}", server_addr);
 
     let connection = endpoint.connect(server_addr, "localhost")?.await?;
-    info!("Connected!");
+    info!("Connected to QUIC daemon at 127.0.0.1:4433");
 
+    let cas = Arc::new(forgeyard_cas::CasEngine::new(".agent_cas").await?);
+    
     let (send, recv) = connection.open_bi().await?;
     
-    let mut framed_read = FramedRead::new(recv, LengthDelimitedCodec::new());
+    let connection_clone = connection.clone();
+    let cas_clone = cas.clone();
+    tokio::spawn(async move {
+        while let Ok(mut stream) = connection_clone.accept_uni().await {
+            let cas = cas_clone.clone();
+            tokio::spawn(async move {
+                if let Ok(len) = stream.read_u32().await {
+                    let mut hash_buf = vec![0u8; len as usize];
+                    if stream.read_exact(&mut hash_buf).await.is_ok() {
+                        if let Ok(hash_str) = String::from_utf8(hash_buf) {
+                            let mut decoded = [0u8; 32];
+                            if hex::decode_to_slice(&hash_str, &mut decoded).is_ok() {
+                                let digest = forgeyard_model::Digest { bytes: decoded };
+                                let _ = cas.write_blob_stream(&digest, stream).await;
+                                info!("Agent successfully received streamed artifact: {}", hash_str);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+
     let mut framed_write = FramedWrite::new(send, LengthDelimitedCodec::new());
+    let mut framed_read = FramedRead::new(recv, LengthDelimitedCodec::new());
 
     // Register
     let info = RunnerInfo {
@@ -231,17 +257,13 @@ async fn main() -> Result<()> {
                                     framed_write.send(Bytes::from(req_bytes)).await?;
                                 }
                                 
-                                // Wait for ArtifactData
+                                // Wait for ArtifactStreamReady
                                 if let Some(art_res) = framed_read.next().await {
                                     if let Ok(art_bytes) = art_res {
-                                        if let Ok(DaemonMessage::ArtifactData { hash, data }) = postcard::from_bytes::<DaemonMessage>(&art_bytes) {
-                                            if hash == hash_str {
-                                                if let Some(b64_data) = data {
-                                                    use base64::{Engine as _, engine::general_purpose::STANDARD};
-                                                    if let Ok(decoded) = STANDARD.decode(&b64_data) {
-                                                        let _ = cas.write_blob(&decoded).await?;
-                                                    }
-                                                }
+                                        if let Ok(DaemonMessage::ArtifactStreamReady { hash, exists }) = postcard::from_bytes::<DaemonMessage>(&art_bytes) {
+                                            if hash == hash_str && exists {
+                                                info!("Daemon is streaming {}", hash_str);
+                                                // We don't read the stream here, it's handled by the async task below
                                             }
                                         }
                                     }
@@ -253,7 +275,7 @@ async fn main() -> Result<()> {
                         let (log_tx, mut log_rx) = tokio::sync::mpsc::channel(1024);
                         let runner_fut = runner.run_job(&job, Some(log_tx), resp.resolved_secrets.clone());
                         tokio::pin!(runner_fut);
-                        
+                        #[allow(unused_assignments)]
                         let mut success = false;
                         let mut batch = Vec::new();
                         loop {
@@ -295,13 +317,22 @@ async fn main() -> Result<()> {
                                     let hash_bytes = hasher.finalize();
                                     let hash_str = hex::encode(hash_bytes);
                                     
-                                    use base64::{Engine as _, engine::general_purpose::STANDARD};
-                                    let b64_data = STANDARD.encode(&data);
-                                    
                                     let push_req = AgentMessage::PushArtifact {
-                                        hash: hash_str,
-                                        data: b64_data,
+                                        hash: hash_str.clone(),
                                     };
+                                    if let Ok(s) = postcard::to_allocvec(&push_req) {
+                                        let _ = framed_write.send(Bytes::from(s)).await;
+                                        
+                                        if let Ok(mut uni_stream) = connection.open_uni().await {
+                                            let _ = uni_stream.write_u32(hash_str.len() as u32).await;
+                                            let _ = uni_stream.write_all(hash_str.as_bytes()).await;
+                                            let mut file = tokio::fs::File::open(path).await.unwrap();
+                                            let _ = tokio::io::copy(&mut file, &mut uni_stream).await;
+                                            let _ = uni_stream.finish();
+                                        }
+                                        
+                                        info!("Pushed artifact {} to daemon CAS", path);
+                                    }
                                     if let Ok(s) = postcard::to_allocvec(&push_req) {
                                         let _ = framed_write.send(Bytes::from(s)).await;
                                         info!("Pushed artifact {} to daemon CAS", path);

@@ -83,6 +83,37 @@ impl CasEngine {
         }
     }
 
+    pub async fn read_blob_stream(&self, digest: &Digest) -> Result<Option<fs::File>, CasError> {
+        let hex_hash = hex::encode(digest.bytes);
+        let prefix = &hex_hash[0..2];
+        let path = self.root.join("blobs").join(prefix).join(&hex_hash);
+
+        if path.exists() {
+            let file = fs::File::open(path).await?;
+            Ok(Some(file))
+        } else {
+            Ok(None)
+        }
+    }
+    
+    pub async fn write_blob_stream(&self, digest: &Digest, mut stream: impl tokio::io::AsyncRead + Unpin) -> Result<(), CasError> {
+        let hex_hash = hex::encode(digest.bytes);
+        let prefix = &hex_hash[0..2];
+        let dir = self.root.join("blobs").join(prefix);
+        fs::create_dir_all(&dir).await?;
+
+        let path = dir.join(&hex_hash);
+        if !path.exists() {
+            let unique_suffix = format!("{}.tmp", uuid::Uuid::new_v4());
+            let temp_path = dir.join(format!("{}.{}", hex_hash, unique_suffix));
+            let mut file = fs::File::create(&temp_path).await?;
+            tokio::io::copy(&mut stream, &mut file).await?;
+            file.sync_all().await?;
+            fs::rename(temp_path, path).await?;
+        }
+        Ok(())
+    }
+
     pub async fn snapshot_directory(&self, path: impl AsRef<Path>) -> Result<Digest, CasError> {
         let root_path = path.as_ref().to_path_buf();
         self.snapshot_dir_recursive(root_path).await

@@ -6,7 +6,10 @@ edition = "2024"
 [dependencies]
 dioxus = { version = "0.7.9", features = ["desktop", "router"] }
 forgeyard-api = { version = "0.1.0", path = "../forgeyard-api" }
+forgeyard-model = { version = "0.1.0", path = "../forgeyard-model" }
 reqwest = { version = "0.13.4", features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
+tokio-tungstenite = "0.21"
+futures-util = "0.3"

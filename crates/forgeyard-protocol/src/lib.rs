@@ -47,7 +47,7 @@ pub enum DaemonMessage {
     AcknowledgeHeartbeat,
     AcknowledgeResult,
     AcknowledgeLogBatch,
-    ArtifactData { hash: String, data: Option<String> }, // base64 encoded
+    ArtifactStreamReady { hash: String, exists: bool }, // signals that the daemon is ready to stream or already has it
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,5 +58,5 @@ pub enum AgentMessage {
     ReportResult(JobResult),
     LogBatch(Vec<forgeyard_model::LogEvent>),
     PullArtifact { hash: String },
-    PushArtifact { hash: String, data: String }, // base64 encoded
+    PushArtifact { hash: String }, // indicates agent will open a unistream to push this hash
 }

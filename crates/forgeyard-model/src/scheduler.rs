@@ -65,4 +65,10 @@ pub struct RunnerDescriptor {
     pub trust_level: TrustLevel,
     pub labels: BTreeMap<String, String>,
     pub health: RunnerHealth,
+    #[serde(default)]
+    pub cached_fingerprints: BTreeSet<String>,
+    #[serde(default)]
+    pub installed_toolchains: BTreeSet<String>,
+    #[serde(default)]
+    pub network_latency_ms: u64,
 }

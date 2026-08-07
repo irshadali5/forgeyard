@@ -13,16 +13,20 @@ forgeyard-storage = { path = "../forgeyard-storage" }
 forgeyard-cas = { path = "../forgeyard-cas" }
 forgeyard-secrets = { path = "../forgeyard-secrets" }
 forgeyard-signing = { path = "../forgeyard-signing" }
+forgeyard-provenance = { path = "../forgeyard-provenance" }
 forgeyard-detector = { path = "../forgeyard-detector" }
 forgeyard-api = { path = "../forgeyard-api" }
-axum = "0.7"
-
+forgeyard-analyzer = { path = "../forgeyard-analyzer" }
+forgeyard-events = { path = "../forgeyard-events" }
+graphify-core = "0.8"
+axum = { version = "0.7", features = ["ws"] }
 forgeyard-protocol = { path = "../forgeyard-protocol" }
 anyhow = "1.0"
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["fmt", "ansi"] }
 uuid = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 quinn = { workspace = true }
 rustls = { workspace = true }
@@ -36,3 +40,6 @@ tokio-util.workspace = true
 bytes.workspace = true
 postcard.workspace = true
 futures.workspace = true
+git2 = "0.21.0"
+tempfile = "3.27.0"
+forgeyard-toolchains = { version = "0.1.0", path = "../forgeyard-toolchains" }

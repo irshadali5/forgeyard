@@ -101,3 +101,130 @@ impl Policy for SecurityPolicy {
 }
 
 pub type BasicPolicy = SecurityPolicy;
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum SeverityLevel {
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VulnerabilityItem {
+    pub id: String,
+    pub package_name: String,
+    pub installed_version: String,
+    pub fixed_version: Option<String>,
+    pub severity: SeverityLevel,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VulnerabilityReport {
+    pub target: String,
+    pub scanner_name: String,
+    pub vulnerabilities: Vec<VulnerabilityItem>,
+}
+
+pub struct VulnerabilityPolicy {
+    pub max_allowed_severity: SeverityLevel,
+    pub fail_on_unpatched: bool,
+}
+
+impl Default for VulnerabilityPolicy {
+    fn default() -> Self {
+        Self {
+            max_allowed_severity: SeverityLevel::Medium,
+            fail_on_unpatched: true,
+        }
+    }
+}
+
+impl VulnerabilityPolicy {
+    pub fn evaluate_report(&self, report: &VulnerabilityReport) -> Vec<PolicyFinding> {
+        let mut findings = Vec::new();
+
+        for vuln in &report.vulnerabilities {
+            if vuln.severity > self.max_allowed_severity {
+                findings.push(PolicyFinding {
+                    rule: "vulnerability_severity_exceeded".to_string(),
+                    status: PolicyFindingStatus::Fail,
+                    message: format!(
+                        "CVE [{}] in package {} ({:?}) exceeds maximum allowed severity threshold ({:?})",
+                        vuln.id, vuln.package_name, vuln.severity, self.max_allowed_severity
+                    ),
+                });
+            } else if vuln.severity == SeverityLevel::Medium {
+                findings.push(PolicyFinding {
+                    rule: "vulnerability_warning".to_string(),
+                    status: PolicyFindingStatus::Warning,
+                    message: format!(
+                        "Medium severity vulnerability [{}] detected in package {}",
+                        vuln.id, vuln.package_name
+                    ),
+                });
+            }
+
+            if self.fail_on_unpatched && vuln.fixed_version.is_none() && vuln.severity >= SeverityLevel::High {
+                findings.push(PolicyFinding {
+                    rule: "unpatched_high_vulnerability".to_string(),
+                    status: PolicyFindingStatus::Fail,
+                    message: format!(
+                        "Unpatched vulnerability [{}] in package {} with no fixed version",
+                        vuln.id, vuln.package_name
+                    ),
+                });
+            }
+        }
+
+        if findings.is_empty() {
+            findings.push(PolicyFinding {
+                rule: "vulnerability_compliance".to_string(),
+                status: PolicyFindingStatus::Pass,
+                message: format!("Vulnerability scan for {} compliant with policy", report.target),
+            });
+        }
+
+        findings
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_vulnerability_policy_thresholds() {
+        let policy = VulnerabilityPolicy::default();
+        let report = VulnerabilityReport {
+            target: "app:latest".to_string(),
+            scanner_name: "trivy".to_string(),
+            vulnerabilities: vec![
+                VulnerabilityItem {
+                    id: "CVE-2026-1001".to_string(),
+                    package_name: "openssl".to_string(),
+                    installed_version: "1.1.1".to_string(),
+                    fixed_version: Some("1.1.1w".to_string()),
+                    severity: SeverityLevel::Critical,
+                    description: "Buffer overflow".to_string(),
+                },
+                VulnerabilityItem {
+                    id: "CVE-2026-1002".to_string(),
+                    package_name: "zlib".to_string(),
+                    installed_version: "1.2.11".to_string(),
+                    fixed_version: None,
+                    severity: SeverityLevel::Medium,
+                    description: "Minor leak".to_string(),
+                },
+            ],
+        };
+
+        let findings = policy.evaluate_report(&report);
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].status, PolicyFindingStatus::Fail);
+        assert_eq!(findings[1].status, PolicyFindingStatus::Warning);
+    }
+}

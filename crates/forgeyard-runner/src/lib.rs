@@ -1,5 +1,5 @@
 use forgeyard_cas::CasEngine;
-use forgeyard_executor::{Executor, ProcessExecutor};
+use forgeyard_executor::{ProcessExecutor};
 #[cfg(target_os = "windows")]
 use forgeyard_executor::WindowsExecutor;
 use forgeyard_model::{JobIr, LogEvent, LogStream, JobId};
@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tracing::{info, warn, error, debug};
 use std::collections::HashMap;
 use camino::Utf8PathBuf;
-use tokio::sync::mpsc::{Sender, Receiver};
+use tokio::sync::mpsc::Sender;
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 use tokio::time::sleep;
 

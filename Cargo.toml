@@ -16,6 +16,7 @@ members = [
     "crates/forgeyard-protocol",
     "crates/forgeyard-agent",
     "crates/forgeyard-ui",
+    "crates/forgeyard-toolchains",
     "crates/forgeyard-deploy",
     "crates/forgeyard-secrets",
     "crates/forgeyard-signing",

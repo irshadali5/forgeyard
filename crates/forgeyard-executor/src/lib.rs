@@ -1,4 +1,4 @@
-use forgeyard_model::{ExecutionSpec, JobIr, LogEvent, LogStream};
+use forgeyard_model::{JobIr, LogEvent};
 use tokio::sync::mpsc;
 use async_trait::async_trait;
 use std::collections::HashMap;

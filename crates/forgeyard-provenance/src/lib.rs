@@ -1,8 +1,15 @@
+use std::collections::BTreeMap;
+use forgeyard_model::{
+    InTotoStatement, ResourceDescriptor, SlsaBuildDefinition, SlsaBuilder,
+    SlsaProvenancePredicate, SlsaRunDetails, SlsaRunMetadata,
+};
+
 pub struct ProvenanceRecord {
     pub artifact_id: String,
     pub builder_id: String,
     pub source_repo: String,
     pub commit_hash: Option<String>,
+    pub slsa_statement: Option<InTotoStatement>,
 }
 
 pub trait ProvenanceGenerator: Send + Sync {
@@ -46,6 +53,92 @@ impl ProvenanceGenerator for BasicProvenanceGenerator {
             builder_id: self.builder_id.clone(),
             source_repo,
             commit_hash,
+            slsa_statement: None,
         }
+    }
+}
+
+impl BasicProvenanceGenerator {
+    pub fn generate_slsa_statement(
+        &self,
+        artifact_name: &str,
+        sha256_digest: &str,
+        job_id: &str,
+        env_vars: BTreeMap<String, String>,
+    ) -> InTotoStatement {
+        let rec = self.generate(artifact_name);
+
+        let mut digest_map = BTreeMap::new();
+        if !sha256_digest.is_empty() {
+            digest_map.insert("sha256".to_string(), sha256_digest.to_string());
+        }
+
+        let subject = vec![ResourceDescriptor {
+            name: artifact_name.to_string(),
+            digest: digest_map,
+        }];
+
+        let ext_params = serde_json::json!({
+            "repository": rec.source_repo,
+            "commit": rec.commit_hash.unwrap_or_default(),
+            "env": env_vars,
+        });
+
+        InTotoStatement {
+            statement_type: "https://in-toto.io/Statement/v1".to_string(),
+            subject,
+            predicate_type: "https://slsa.dev/provenance/v1".to_string(),
+            predicate: SlsaProvenancePredicate {
+                build_definition: SlsaBuildDefinition {
+                    build_type: "https://forgeyard.dev/provenance/v1".to_string(),
+                    external_parameters: ext_params,
+                    internal_parameters: None,
+                    resolved_dependencies: vec![],
+                },
+                run_details: SlsaRunDetails {
+                    builder: SlsaBuilder {
+                        id: self.builder_id.clone(),
+                    },
+                    metadata: SlsaRunMetadata {
+                        invocation_id: job_id.to_string(),
+                        started_on: None,
+                        finished_on: None,
+                    },
+                },
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_slsa_statement_generation() {
+        let generator = BasicProvenanceGenerator {
+            workspace_root: ".".to_string(),
+            builder_id: "test-builder-1".to_string(),
+        };
+
+        let mut env_vars = BTreeMap::new();
+        env_vars.insert("CARGO_PKG_VERSION".to_string(), "0.1.0".to_string());
+
+        let stmt = generator.generate_slsa_statement(
+            "target/release/forgeyard",
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "job-1234",
+            env_vars,
+        );
+
+        assert_eq!(stmt.statement_type, "https://in-toto.io/Statement/v1");
+        assert_eq!(stmt.predicate_type, "https://slsa.dev/provenance/v1");
+        assert_eq!(stmt.subject.len(), 1);
+        assert_eq!(stmt.subject[0].name, "target/release/forgeyard");
+        assert_eq!(
+            stmt.subject[0].digest.get("sha256").unwrap(),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+        assert_eq!(stmt.predicate.run_details.builder.id, "test-builder-1");
     }
 }

@@ -1,7 +1,6 @@
 use forgeyard_model::{JobId, JobState, RunId};
 use stoolap::Database;
 use std::path::Path;
-use uuid::Uuid;
 
 use std::sync::Mutex;
 
@@ -42,6 +41,7 @@ impl MetadataStore {
                 name TEXT NOT NULL,
                 state TEXT NOT NULL,
                 fingerprint TEXT,
+                dependencies TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(run_id) REFERENCES runs(id)
             )",
@@ -97,18 +97,21 @@ impl MetadataStore {
         name: &str,
         state: JobState,
         fingerprint: Option<&str>,
+        dependencies: &[JobId],
     ) -> Result<(), StorageError> {
         let state_str = format!("{:?}", state);
         let fingerprint_str = fingerprint.map(|s| s.to_string()).unwrap_or_default();
+        let deps_json = serde_json::to_string(dependencies).unwrap_or_else(|_| "[]".to_string());
         let conn = self.conn.lock().map_err(|e| StorageError::Lock(e.to_string()))?;
         conn.execute(
-            "INSERT INTO jobs (id, run_id, name, state, fingerprint) VALUES ($1, $2, $3, $4, $5)",
+            "INSERT INTO jobs (id, run_id, name, state, fingerprint, dependencies) VALUES ($1, $2, $3, $4, $5, $6)",
             (
                 job_id.0.to_string(),
                 run_id.0.to_string(),
                 name.to_string(),
                 state_str,
                 fingerprint_str,
+                deps_json,
             ),
         ).map_err(|e| StorageError::Db(e.to_string()))?;
         Ok(())
@@ -190,9 +193,12 @@ impl MetadataStore {
 }
 
 pub struct JobStatus {
-    pub id: JobId,
+    pub id: String,
+    pub run_id: String,
     pub name: String,
     pub state: JobState,
+    pub fingerprint: Option<String>,
+    pub dependencies: Vec<String>,
 }
 
 impl MetadataStore {
@@ -200,23 +206,29 @@ impl MetadataStore {
         let conn = self.conn.lock().map_err(|e| StorageError::Lock(e.to_string()))?;
         let run_id_str = run_id.0.to_string();
         
-        let rows = conn.query("SELECT id, name, state FROM jobs WHERE run_id = $1", (run_id_str,))
+        let rows = conn.query("SELECT id, name, state, fingerprint, dependencies FROM jobs WHERE run_id = $1", (run_id_str.clone(),))
             .map_err(|e| StorageError::Db(e.to_string()))?;
         
         let mut jobs = Vec::new();
         for row in rows {
             if let Ok(r) = row {
-                let id_str = r.get::<String>(0).map_err(|e| StorageError::Db(e.to_string()))?;
-                let name = r.get::<String>(1).map_err(|e| StorageError::Db(e.to_string()))?;
-                let state_str = r.get::<String>(2).map_err(|e| StorageError::Db(e.to_string()))?;
+                let id: String = r.get(0).map_err(|e| StorageError::Db(e.to_string()))?;
+                let name: String = r.get(1).map_err(|e| StorageError::Db(e.to_string()))?;
+                let state_str: String = r.get(2).map_err(|e| StorageError::Db(e.to_string()))?;
+                let fingerprint: String = r.get(3).unwrap_or_default();
+                let deps_json: String = r.get(4).unwrap_or_else(|_| "[]".to_string());
+                let dependencies: Vec<String> = serde_json::from_str(&deps_json).unwrap_or_default();
                 
-                let id = JobId(Uuid::parse_str(&id_str).unwrap_or_default());
-                let state = if state_str.contains("Succeeded") { JobState::Succeeded }
-                            else if state_str.contains("Failed") { JobState::Failed }
-                            else if state_str.contains("Running") { JobState::Running }
-                            else { JobState::Created };
+                let state = serde_json::from_str(&state_str).unwrap_or(JobState::Created);
                             
-                jobs.push(JobStatus { id, name, state });
+                jobs.push(JobStatus { 
+                    id, 
+                    run_id: run_id_str.clone(),
+                    name, 
+                    state,
+                    fingerprint: if fingerprint.is_empty() { None } else { Some(fingerprint) },
+                    dependencies
+                });
             }
         }
         Ok(jobs)

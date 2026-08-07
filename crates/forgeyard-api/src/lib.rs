@@ -17,13 +17,14 @@ pub struct SubmitRunResponse {
     pub expected_jobs: usize,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobStatusInfo {
     pub job_name: String,
     pub state: String,
     pub start_time: Option<u64>,
     pub end_time: Option<u64>,
     pub runner_id: Option<String>,
+    pub dependencies: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
