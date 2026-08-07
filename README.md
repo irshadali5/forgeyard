@@ -5,8 +5,8 @@
 ---
 
 > [!IMPORTANT]
-> ### 🤖 AI-Engineered & Human-Directed Development Notice
-> **Transparency Statement**: All code and material within this repository was generated and written with AI agent collaboration, but strictly guided, engineered, audited, and decided by **human architectural vision, contribution, security research, bug fixing, and deliberate design decisions**. Every component, crate dependency, storage model, and control flow decision reflects intentional human engineering for maximum performance, memory safety, security, and cross-platform reliability.
+> ### 🤖 Ongoing AI-Assisted & Human-Directed Engineering Notice
+> **Transparency Statement**: Development of Forgeyard is **ongoing** and strictly guided, engineered, audited, and decided by **human architectural vision, contribution, security research, bug fixing, and deliberate design decisions**. Every component, crate dependency, storage model, security constraint, and control flow decision reflects intentional human engineering for maximum performance, memory safety, security, and cross-platform reliability.
 
 ---
 
@@ -109,12 +109,14 @@ cargo build --workspace --release
 
 ---
 
-## 🛡️ Security & Bug Reporting
+## 🤝 Help & Contributions Needed
 
-Security research and vulnerability disclosure are essential to the Forgeyard ecosystem.
+Development of Forgeyard is an **ongoing effort**, and we actively seek and welcome community and enterprise assistance! 
 
-- **Vulnerability Disclosures**: If you discover a security vulnerability or security flaw, please do **NOT** open a public issue. Send a detailed report directly to the core maintainers.
-- **Bug Reports & Contributions**: Bug fixes, performance enhancements, and security improvements are welcome via pull requests following our contribution guidelines.
+We invite **help, contributions, security research, bug reports, security auditing, documentation improvements, and architectural feedback** from developers, engineers, and researchers worldwide. 
+
+- **Security Researchers**: If you audit or find vulnerabilities, please report them to help make Forgeyard more resilient.
+- **Developers & Contributors**: Help us expand ecosystem adapters, optimize build runners, write tests, and refine documentation.
 
 ---
 
