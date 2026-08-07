@@ -267,6 +267,41 @@ impl TrivyScanner {
             vulnerabilities,
         }
     }
+
+    pub fn parse_file_io_uring(target: &str, report_path: &std::path::Path) -> VulnerabilityReport {
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(mut ring) = io_uring::IoUring::new(8) {
+                if let Ok(file) = std::fs::File::open(report_path) {
+                    use std::os::unix::io::AsRawFd;
+                    let fd = io_uring::types::Fd(file.as_raw_fd());
+                    let file_size = file.metadata().map(|m| m.len() as usize).unwrap_or(0);
+                    if file_size > 0 {
+                        let mut buf = vec![0u8; file_size];
+                        let read_e = io_uring::opcode::Read::new(fd, buf.as_mut_ptr(), file_size as u32).build();
+                        unsafe {
+                            let _ = ring.submission().push(&read_e);
+                        }
+                        if ring.submit_and_wait(1).is_ok() {
+                            if let Ok(content) = String::from_utf8(buf) {
+                                return Self::parse_output(target, &content);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Ok(content) = std::fs::read_to_string(report_path) {
+            Self::parse_output(target, &content)
+        } else {
+            VulnerabilityReport {
+                target: target.to_string(),
+                scanner_name: "trivy".to_string(),
+                vulnerabilities: vec![],
+            }
+        }
+    }
 }
 
 #[cfg(test)]

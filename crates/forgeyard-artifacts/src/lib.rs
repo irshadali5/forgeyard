@@ -31,6 +31,54 @@ impl LocalArtifactRegistry {
     }
 
     pub async fn compute_blake3(path: &Path) -> Result<(String, u64), String> {
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(mut ring) = io_uring::IoUring::new(16) {
+                if let Ok(file) = std::fs::File::open(path) {
+                    use std::os::unix::io::AsRawFd;
+                    let fd = io_uring::types::Fd(file.as_raw_fd());
+                    let mut hasher = blake3::Hasher::new();
+                    let mut buffer = [0u8; 16384];
+                    let mut total_bytes = 0u64;
+                    let mut offset = 0u64;
+
+                    loop {
+                        let read_e = io_uring::opcode::Read::new(fd, buffer.as_mut_ptr(), buffer.len() as u32)
+                            .offset(offset)
+                            .build();
+                        unsafe {
+                            let _ = ring.submission().push(&read_e);
+                        }
+                        if ring.submit_and_wait(1).is_err() {
+                            break;
+                        }
+                        
+                        let mut cqe_found = false;
+                        for cqe in ring.completion() {
+                            let n = cqe.result();
+                            if n <= 0 {
+                                cqe_found = false;
+                                break;
+                            }
+                            let bytes_read = n as usize;
+                            hasher.update(&buffer[..bytes_read]);
+                            total_bytes += bytes_read as u64;
+                            offset += bytes_read as u64;
+                            cqe_found = true;
+                        }
+                        if !cqe_found {
+                            break;
+                        }
+                    }
+                    if total_bytes > 0 {
+                        let hash_hex = hasher.finalize().to_hex().to_string();
+                        return Ok((hash_hex, total_bytes));
+                    }
+                }
+            }
+        }
+
+        // Standard Tokio async fallback
         let mut file = tokio::fs::File::open(path)
             .await
             .map_err(|e| format!("Failed to open file for hashing: {}", e))?;

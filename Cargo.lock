@@ -2327,6 +2327,7 @@ dependencies = [
  "async-trait",
  "blake3",
  "hex",
+ "io-uring",
  "serde",
  "serde_json",
  "tempfile",
@@ -2551,6 +2552,7 @@ dependencies = [
 name = "forgeyard-policy"
 version = "0.1.0"
 dependencies = [
+ "io-uring",
  "serde",
  "serde_json",
 ]
@@ -2621,6 +2623,7 @@ dependencies = [
  "blake3",
  "dotenvy",
  "forgeyard-model",
+ "io-uring",
  "thiserror 1.0.69",
  "tokio",
 ]

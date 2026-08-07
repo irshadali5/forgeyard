@@ -68,6 +68,30 @@ impl EncryptedVaultBackend {
             lock.insert(name.to_string(), encrypted);
         }
     }
+
+    pub fn persist_vault_io_uring(&self, path: &std::path::Path) -> Result<(), String> {
+        let lock = self.vault.read().map_err(|e| e.to_string())?;
+        let payload = format!("{:?}", *lock);
+
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(mut ring) = io_uring::IoUring::new(8) {
+                if let Ok(file) = std::fs::OpenOptions::new().create(true).write(true).truncate(true).open(path) {
+                    use std::os::unix::io::AsRawFd;
+                    let fd = io_uring::types::Fd(file.as_raw_fd());
+                    let mut data = payload.into_bytes();
+                    let write_e = io_uring::opcode::Write::new(fd, data.as_mut_ptr(), data.len() as u32).build();
+                    unsafe {
+                        let _ = ring.submission().push(&write_e);
+                    }
+                    let _ = ring.submit_and_wait(1);
+                    return Ok(());
+                }
+            }
+        }
+
+        std::fs::write(path, payload).map_err(|e| e.to_string())
+    }
 }
 
 #[async_trait]
