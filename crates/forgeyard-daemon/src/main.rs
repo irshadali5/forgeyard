@@ -106,6 +106,7 @@ async fn main() -> anyhow::Result<()> {
         store: store.clone(),
         quic_server: quic_server.clone(),
         active_runners: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+        secrets: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
     };
 
     let app = Router::new()
@@ -132,6 +133,7 @@ struct AppState {
     store: Arc<MetadataStore>,
     quic_server: Arc<quic_server::QuicServer>,
     active_runners: Arc<tokio::sync::RwLock<std::collections::HashMap<String, forgeyard_api::RunnerStatus>>>,
+    secrets: Arc<tokio::sync::RwLock<std::collections::HashMap<String, String>>>,
 }
 
 async fn handle_run(
@@ -275,16 +277,17 @@ async fn handle_create_secret(
     Json(payload): Json<forgeyard_api::SecretCreateRequest>,
 ) -> axum::http::StatusCode {
     info!("Creating secret: {} in scope: {}", payload.name, payload.scope);
-    // Real implementation would inject into SecretBroker
+    let mut secrets = state.secrets.write().await;
+    secrets.insert(payload.name, payload.value);
     axum::http::StatusCode::CREATED
 }
 
 async fn handle_list_secrets(
     State(state): State<AppState>,
 ) -> Json<forgeyard_api::SecretListResponse> {
-    // Return mock secrets for now
+    let secrets = state.secrets.read().await;
     Json(forgeyard_api::SecretListResponse {
-        secrets: vec!["NPM_TOKEN".to_string(), "AWS_ACCESS_KEY_ID".to_string()],
+        secrets: secrets.keys().cloned().collect(),
     })
 }
 

@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 
+#[derive(Debug, Clone)]
 pub struct DeviceCapabilities {
+    pub id: String,
     pub os: String,
     pub version: String,
     pub architecture: String,
@@ -27,52 +29,71 @@ impl LocalAndroidDeviceLab {
             locked_devices: tokio::sync::Mutex::new(std::collections::HashSet::new()),
         }
     }
+
+    fn query_device_prop(id: &str, prop: &str) -> String {
+        let output = std::process::Command::new("adb")
+            .args(["-s", id, "shell", "getprop", prop])
+            .output();
+
+        if let Ok(out) = output {
+            if out.status.success() {
+                let val = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                if !val.is_empty() {
+                    return val;
+                }
+            }
+        }
+        "unknown".to_string()
+    }
 }
 
 #[async_trait]
 impl DeviceLab for LocalAndroidDeviceLab {
     async fn list_devices(&self) -> Result<Vec<DeviceCapabilities>, String> {
-        // Mocking `adb devices` discovery for now
         let output = std::process::Command::new("adb")
             .arg("devices")
-            .output();
+            .output()
+            .map_err(|e| format!("Failed to execute adb: {}", e))?;
 
-        if let Ok(out) = output {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            let mut devices = Vec::new();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut devices = Vec::new();
 
-            for line in stdout.lines() {
-                if line.ends_with("device") {
-                    let parts: Vec<&str> = line.split_whitespace().collect();
-                    if let Some(id) = parts.first() {
-                        devices.push(DeviceCapabilities {
-                            os: "Android".to_string(),
-                            version: id.to_string(), // Hack: storing id in version for now
-                            architecture: "arm64-v8a".to_string(), // In reality we'd `adb -s <id> shell getprop`
-                        });
-                    }
+        for line in stdout.lines() {
+            if line.ends_with("device") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if let Some(&id) = parts.first() {
+                    let version = Self::query_device_prop(id, "ro.build.version.release");
+                    let architecture = Self::query_device_prop(id, "ro.product.cpu.abi");
+
+                    devices.push(DeviceCapabilities {
+                        id: id.to_string(),
+                        os: "Android".to_string(),
+                        version,
+                        architecture,
+                    });
                 }
             }
-            return Ok(devices);
         }
-        
-        Err("Failed to execute adb".to_string())
+
+        Ok(devices)
     }
 
-    async fn acquire_device(&self, _requirements: &DeviceCapabilities) -> Result<DeviceSession, String> {
+    async fn acquire_device(&self, requirements: &DeviceCapabilities) -> Result<DeviceSession, String> {
         let available = self.list_devices().await?;
         let mut locked = self.locked_devices.lock().await;
 
         for dev in available {
-            // Find a device matching architecture/os, but right now we just grab the first available
-            let id = dev.version; // Hack: list_devices pushes id to version for now
-            if !locked.contains(&id) {
-                locked.insert(id.clone());
-                return Ok(DeviceSession { id });
+            if dev.os.eq_ignore_ascii_case(&requirements.os) {
+                if requirements.architecture.is_empty() || dev.architecture.contains(&requirements.architecture) {
+                    if !locked.contains(&dev.id) {
+                        locked.insert(dev.id.clone());
+                        return Ok(DeviceSession { id: dev.id });
+                    }
+                }
             }
         }
-        
-        Err("No available devices".to_string())
+
+        Err("No matching available devices in device lab".to_string())
     }
 
     async fn release_device(&self, session: DeviceSession) -> Result<(), String> {
