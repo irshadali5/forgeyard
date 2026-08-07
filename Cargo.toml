@@ -1,0 +1,76 @@
+[workspace]
+members = [
+    "crates/forgeyard-model",
+    "crates/forgeyard-config",
+    "crates/forgeyard-cas",
+    "crates/forgeyard-storage",
+    "crates/forgeyard-pipeline",
+    "crates/forgeyard-executor",
+    "crates/forgeyard-runner",
+    "crates/forgeyard-daemon",
+    "crates/forgeyard-cli",
+    "crates/forgeyard-scheduler",
+    "crates/forgeyard-adapter-cargo",
+    "crates/forgeyard-sandbox",
+    "crates/forgeyard-archive",
+    "crates/forgeyard-protocol",
+    "crates/forgeyard-agent",
+    "crates/forgeyard-ui",
+    "crates/forgeyard-deploy",
+    "crates/forgeyard-secrets",
+    "crates/forgeyard-signing",
+    "crates/forgeyard-api",
+    "crates/forgeyard-cache",
+    "crates/forgeyard-events",
+    "crates/forgeyard-logs",
+    "crates/forgeyard-artifacts",
+    "crates/forgeyard-provenance",
+    "crates/forgeyard-policy",
+    "crates/forgeyard-toolchains",
+    "crates/forgeyard-detector",
+    "crates/forgeyard-adapter-dioxus",
+    "crates/forgeyard-adapter-wasm",
+    "crates/forgeyard-adapter-android",
+    "crates/forgeyard-adapter-xcode",
+    "crates/forgeyard-adapter-oci",
+    "crates/forgeyard-packaging",
+    "crates/forgeyard-device-lab",
+    "crates/forgeyard-test-report", "crates/forgeyard-analyzer",
+]
+resolver = "2"
+
+[workspace.dependencies]
+tokio = { version = "1.37", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+ron = "0.8"
+bytes = "1.5"
+blake3 = "1.5"
+clap = { version = "4.5", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+miette = { version = "7.2", features = ["fancy"] }
+thiserror = "1.0"
+anyhow = "1.0"
+stoolap = { version = "0.4" }
+uuid = { version = "1.8", features = ["v4", "serde"] }
+camino = { version = "1.1", features = ["serde1"] }
+hex = "0.4.3"
+serde_json = "1.0"
+async-trait = "0.1"
+config = "0.14"
+tar = "0.4"
+flate2 = "1.0"
+zip = "0.6"
+quinn = "0.10"
+rustls = { version = "0.21", default-features = false, features = ["quic", "tls12", "dangerous_configuration"] }
+rustls-pemfile = "1.0"
+rcgen = "0.11"
+postcard = { version = "1.0", features = ["alloc"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+futures = "0.3"
+rayon = "1.10"
+graphify-core = "0.8.0"
+graphify-extract = "0.8.0"
+quick_cache = "0.7.0"
+redb = "2.2.1"
+

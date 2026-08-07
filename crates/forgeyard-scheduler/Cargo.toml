@@ -1,0 +1,10 @@
+[package]
+name = "forgeyard-scheduler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forgeyard-model = { path = "../forgeyard-model" }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }

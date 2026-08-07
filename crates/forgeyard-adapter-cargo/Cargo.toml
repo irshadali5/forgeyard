@@ -1,0 +1,11 @@
+[package]
+name = "forgeyard-adapter-cargo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forgeyard-model = { path = "../forgeyard-model" }
+forgeyard-config = { path = "../forgeyard-config" }
+thiserror = { workspace = true }
+camino = { workspace = true }
+tracing = { workspace = true }

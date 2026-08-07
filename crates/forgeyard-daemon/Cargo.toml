@@ -1,0 +1,38 @@
+[package]
+name = "forgeyard-daemon"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forgeyard-adapter-cargo = { path = "../forgeyard-adapter-cargo" }
+forgeyard-config = { path = "../forgeyard-config" }
+forgeyard-model = { path = "../forgeyard-model" }
+forgeyard-pipeline = { path = "../forgeyard-pipeline" }
+forgeyard-runner = { path = "../forgeyard-runner" }
+forgeyard-storage = { path = "../forgeyard-storage" }
+forgeyard-cas = { path = "../forgeyard-cas" }
+forgeyard-secrets = { path = "../forgeyard-secrets" }
+forgeyard-signing = { path = "../forgeyard-signing" }
+forgeyard-detector = { path = "../forgeyard-detector" }
+forgeyard-api = { path = "../forgeyard-api" }
+axum = "0.7"
+
+forgeyard-protocol = { path = "../forgeyard-protocol" }
+anyhow = "1.0"
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["fmt", "ansi"] }
+uuid = { workspace = true }
+serde_json = { workspace = true }
+quinn = { workspace = true }
+rustls = { workspace = true }
+rcgen = { workspace = true }
+rustls-pemfile = { workspace = true }
+mdns-sd = "0.20.3"
+clap.workspace = true
+base64 = "0.23.0"
+hex.workspace = true
+tokio-util.workspace = true
+bytes.workspace = true
+postcard.workspace = true
+futures.workspace = true

@@ -1,0 +1,12 @@
+[package]
+name = "forgeyard-signing"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+forgeyard-model = { path = "../forgeyard-model" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
+rand = "0.8.5"
+hex = "0.4.3"

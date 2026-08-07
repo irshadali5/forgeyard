@@ -1,0 +1,12 @@
+[package]
+name = "forgeyard-storage"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forgeyard-model = { path = "../forgeyard-model" }
+stoolap = { workspace = true }
+thiserror = { workspace = true }
+camino = { workspace = true }
+uuid = { workspace = true }
+serde_json = { workspace = true }

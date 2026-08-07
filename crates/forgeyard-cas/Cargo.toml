@@ -1,0 +1,17 @@
+[package]
+name = "forgeyard-cas"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forgeyard-model = { path = "../forgeyard-model" }
+blake3 = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+camino = { workspace = true }
+bytes = { workspace = true }
+hex = { workspace = true }
+ignore = "0.4"
+async-recursion = "1.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

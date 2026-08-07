@@ -1,0 +1,12 @@
+[package]
+name = "forgeyard-config"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forgeyard-model = { path = "../forgeyard-model" }
+serde = { workspace = true }
+ron = { workspace = true }
+thiserror = { workspace = true }
+camino = { workspace = true }
+config = { workspace = true }

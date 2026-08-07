@@ -1,0 +1,11 @@
+[package]
+name = "forgeyard-archive"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tar = { workspace = true }
+flate2 = { workspace = true }
+zip = { workspace = true }
+thiserror = { workspace = true }
+walkdir = "2.5"

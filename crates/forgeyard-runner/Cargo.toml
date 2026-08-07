@@ -1,0 +1,15 @@
+[package]
+name = "forgeyard-runner"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forgeyard-model = { path = "../forgeyard-model" }
+forgeyard-executor = { path = "../forgeyard-executor" }
+forgeyard-cas = { path = "../forgeyard-cas" }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+camino = { workspace = true }
+hex.workspace = true
+forgeyard-sandbox = { version = "0.1.0", path = "../forgeyard-sandbox" }

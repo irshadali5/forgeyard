@@ -1,0 +1,20 @@
+[package]
+name = "forgeyard-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forgeyard-model = { path = "../forgeyard-model" }
+clap = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+reqwest = { version = "0.12", features = ["json"] }
+forgeyard-api = { path = "../forgeyard-api" }
+miette = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+camino = { workspace = true }
+forgeyard-detector = { path = "../forgeyard-detector" }
+forgeyard-config = { path = "../forgeyard-config" }
+forgeyard-adapter-cargo = { path = "../forgeyard-adapter-cargo" }
+forgeyard-pipeline = { path = "../forgeyard-pipeline" }

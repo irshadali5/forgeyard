@@ -1,0 +1,10 @@
+[package]
+name = "forgeyard-protocol"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+forgeyard-model = { path = "../forgeyard-model" }
+uuid = { workspace = true }
+bytes = { workspace = true }

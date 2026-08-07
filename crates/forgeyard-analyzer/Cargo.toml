@@ -1,0 +1,12 @@
+[package]
+name = "forgeyard-analyzer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+graphify-core = { workspace = true }
+graphify-extract = { workspace = true }
+forgeyard-model = { path = "../forgeyard-model" }

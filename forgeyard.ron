@@ -1,0 +1,38 @@
+(
+    version: 1,
+    pipelines: [
+        (
+            name: "forgeyard-ci",
+            trigger: (
+                branch: "main",
+                event: Push,
+            ),
+            jobs: [
+                (
+                    name: "test-workspace",
+                    needs: [],
+                    runner: "linux-x86_64",
+                    execution: Command(
+                        program: "cargo",
+                        arguments: ["test", "--workspace"],
+                        working_directory: ".",
+                        environment: {
+                            "RUST_BACKTRACE": "1",
+                        },
+                    ),
+                ),
+                (
+                    name: "build-workspace",
+                    needs: ["test-workspace"],
+                    runner: "linux-x86_64",
+                    execution: Command(
+                        program: "cargo",
+                        arguments: ["build", "--workspace", "--release"],
+                        working_directory: ".",
+                        environment: {},
+                    ),
+                ),
+            ],
+        ),
+    ],
+)

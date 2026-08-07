@@ -1,0 +1,10 @@
+[package]
+name = "forgeyard-secrets"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dotenvy = "0.15"
+async-trait = "0.1"
+thiserror = "1.0"
+forgeyard-model = { path = "../forgeyard-model" }

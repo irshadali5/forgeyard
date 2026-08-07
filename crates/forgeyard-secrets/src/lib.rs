@@ -1,0 +1,76 @@
+use async_trait::async_trait;
+use forgeyard_model::SecretReference;
+use std::collections::HashMap;
+
+#[derive(Debug, thiserror::Error)]
+pub enum SecretError {
+    #[error("Secret not found: {0}")]
+    NotFound(String),
+    #[error("Backend error: {0}")]
+    Backend(String),
+}
+
+#[async_trait]
+pub trait SecretBackend: Send + Sync {
+    async fn get(&self, reference: &SecretReference) -> Result<String, SecretError>;
+}
+
+pub struct EnvSecretBackend;
+
+#[async_trait]
+impl SecretBackend for EnvSecretBackend {
+    async fn get(&self, reference: &SecretReference) -> Result<String, SecretError> {
+        // Read directly from the host environment of the daemon
+        std::env::var(&reference.name).map_err(|_| SecretError::NotFound(reference.name.clone()))
+    }
+}
+
+pub struct DotEnvBackend;
+
+#[async_trait]
+impl SecretBackend for DotEnvBackend {
+    async fn get(&self, reference: &SecretReference) -> Result<String, SecretError> {
+        if let Ok(path) = dotenvy::dotenv() {
+            if let Ok(iter) = dotenvy::from_path_iter(path) {
+                for item in iter {
+                    if let Ok((k, v)) = item {
+                        if k == reference.name {
+                            return Ok(v);
+                        }
+                    }
+                }
+            }
+        }
+        Err(SecretError::NotFound(reference.name.clone()))
+    }
+}
+
+pub struct SecretBroker {
+    backends: Vec<Box<dyn SecretBackend>>,
+}
+
+impl SecretBroker {
+    pub fn new() -> Self {
+        Self {
+            backends: vec![Box::new(DotEnvBackend), Box::new(EnvSecretBackend)],
+        }
+    }
+
+    pub async fn resolve_job_secrets(&self, secrets: &[SecretReference]) -> Result<HashMap<String, String>, SecretError> {
+        let mut resolved = HashMap::new();
+        for sec in secrets {
+            let mut found = false;
+            for backend in &self.backends {
+                if let Ok(val) = backend.get(sec).await {
+                    resolved.insert(sec.name.clone(), val);
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                return Err(SecretError::NotFound(sec.name.clone()));
+            }
+        }
+        Ok(resolved)
+    }
+}

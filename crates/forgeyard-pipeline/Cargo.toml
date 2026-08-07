@@ -1,0 +1,18 @@
+[package]
+name = "forgeyard-pipeline"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forgeyard-model = { path = "../forgeyard-model" }
+forgeyard-config = { path = "../forgeyard-config" }
+thiserror = { workspace = true }
+blake3 = { workspace = true }
+hex = { workspace = true }
+serde_json = { workspace = true }
+camino = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_yaml = "0.9.34"
+tracing.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+sha2 = "0.11.0"

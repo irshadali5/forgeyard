@@ -1,0 +1,32 @@
+[package]
+name = "forgeyard-agent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true, features = ["full"] }
+quinn = { workspace = true }
+rustls = { workspace = true }
+rcgen = { workspace = true }
+rustls-pemfile = { workspace = true }
+forgeyard-protocol = { path = "../forgeyard-protocol" }
+forgeyard-runner = { path = "../forgeyard-runner" }
+forgeyard-model = { path = "../forgeyard-model" }
+forgeyard-cas = { path = "../forgeyard-cas" }
+forgeyard-api = { path = "../forgeyard-api" }
+forgeyard-config = { path = "../forgeyard-config" }
+uuid = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = "1.0"
+mdns-sd = "0.20.3"
+clap.workspace = true
+base64 = "0.23.0"
+hex.workspace = true
+sha2 = "0.10"
+reqwest = { version = "0.12", features = ["json"] }
+tokio-util.workspace = true
+bytes.workspace = true
+postcard.workspace = true
+futures.workspace = true
