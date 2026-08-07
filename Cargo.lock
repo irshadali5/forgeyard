@@ -2656,6 +2656,7 @@ dependencies = [
 name = "forgeyard-test-report"
 version = "0.1.0"
 dependencies = [
+ "io-uring",
  "serde",
  "serde_json",
 ]

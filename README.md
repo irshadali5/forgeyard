@@ -27,6 +27,12 @@ Engineered entirely in Rust, Forgeyard replaces heavy, external database depende
 - **Unified Engine (`Stoolap`)**: Replaces traditional heavy SQL engines with an embedded, zero-config hybrid database supporting both transactional (OLTP) and analytical (OLAP) queries.
 - **Built-in Vector & Semantic Indexing**: Enables fast vector similarity searches over build artifacts, task logs, and codebase AST relationships without third-party vector databases.
 
+### 🚀 Linux Kernel `io_uring` Zero-Copy Engine
+
+- **Asynchronous Submission Queue (SQ) & Completion Queue (CQ)**: Submits kernel read and write ring operations directly via `io-uring` (`IoUringCasEngine`, `IoUringLogWriter`) to bypass traditional POSIX syscall context switching overhead.
+- **Workspace-Wide High Throughput**: Accelerated I/O for CAS blob streaming, file logging, BLAKE3 checksum hashing (`compute_blake3`), encrypted secret vault persistence (`persist_vault_io_uring`), and XML/JSON report parsing (`parse_file_io_uring`).
+- **Cross-Platform Parity & Fallback**: Runtime kernel capability detection (`is_io_uring_supported()`) with automatic fallback to standard Tokio async file I/O on macOS, Windows, or older Linux kernels.
+
 ### 🛡️ Layered High-Performance Caching
 
 - **L1 In-Memory Cache (`quick-cache`)**: Hyper-concurrent, low-lock-contention RAM cache for fast memory access.
