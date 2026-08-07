@@ -5,6 +5,21 @@ pub struct MatrixContext {
     pub variables: BTreeMap<String, String>,
 }
 
+impl MatrixContext {
+    pub fn substitute(&self, template: &str) -> String {
+        let mut result = template.to_string();
+        for (k, v) in &self.variables {
+            result = result.replace(&format!("${{{}}}", k), v);
+            result = result.replace(&format!("${}", k), v);
+        }
+        result
+    }
+
+    pub fn substitute_command(&self, command: &[String]) -> Vec<String> {
+        command.iter().map(|arg| self.substitute(arg)).collect()
+    }
+}
+
 pub struct MatrixExpander;
 
 impl MatrixExpander {
@@ -23,10 +38,14 @@ impl MatrixExpander {
                 let parts: Vec<&str> = line.splitn(2, ':').collect();
                 if parts.len() == 2 {
                     let key = parts[0].trim().to_string();
-                    let values: Vec<String> = parts[1]
+                    let mut values: Vec<String> = parts[1]
                         .split(',')
                         .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
                         .collect();
+                    if values.is_empty() {
+                        values.push("default".to_string());
+                    }
                     dimensions.push((key, values));
                 }
             }

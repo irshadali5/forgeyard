@@ -152,7 +152,7 @@ impl MetadataStore {
                 forgeyard_model::LogStream::System => "system",
             };
             conn.execute(
-                "INSERT INTO logs (job_id, sequence, stream, timestamp, message) VALUES ($1, $2, $3, $4, $5)",
+                "INSERT OR REPLACE INTO logs (job_id, sequence, stream, timestamp, message) VALUES ($1, $2, $3, $4, $5)",
                 (
                     log.job_id.0.to_string(),
                     log.sequence as i64,

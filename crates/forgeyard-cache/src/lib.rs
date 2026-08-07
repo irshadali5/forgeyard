@@ -83,8 +83,12 @@ impl DiskCache {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| CacheError::Failed(e.to_string()))?;
         }
-        let db = redb::Database::create(path.join("cache.redb"))
-            .map_err(|e| CacheError::Failed(e.to_string()))?;
+        let db_path = path.join("cache.redb");
+        let db = if db_path.exists() {
+            redb::Database::open(&db_path).map_err(|e| CacheError::Failed(e.to_string()))?
+        } else {
+            redb::Database::create(&db_path).map_err(|e| CacheError::Failed(e.to_string()))?
+        };
             
         let write_txn = db.begin_write().map_err(|e| CacheError::Failed(e.to_string()))?;
         write_txn.open_table(CACHE_TABLE).map_err(|e| CacheError::Failed(e.to_string()))?;
@@ -115,5 +119,43 @@ impl Cache for DiskCache {
         let item = table.get(key.0.as_str()).map_err(|e| CacheError::Failed(e.to_string()))?;
         
         Ok(item.map(|i| i.value().to_vec()))
+    }
+}
+
+pub struct TieredCache {
+    l1_memory: MemoryCache,
+    l2_disk: DiskCache,
+}
+
+impl TieredCache {
+    pub fn new(memory_capacity: usize, disk_dir: impl Into<std::path::PathBuf>) -> Result<Self, CacheError> {
+        let l1_memory = MemoryCache::new(memory_capacity);
+        let l2_disk = DiskCache::new(disk_dir)?;
+        Ok(Self { l1_memory, l2_disk })
+    }
+}
+
+#[async_trait]
+impl Cache for TieredCache {
+    async fn put(&self, key: &CacheKey, data: &[u8]) -> Result<(), CacheError> {
+        self.l1_memory.put(key, data).await?;
+        self.l2_disk.put(key, data).await?;
+        Ok(())
+    }
+
+    async fn get(&self, key: &CacheKey) -> Result<Option<Vec<u8>>, CacheError> {
+        // Step 1: Check L1 memory cache
+        if let Ok(Some(data)) = self.l1_memory.get(key).await {
+            return Ok(Some(data));
+        }
+
+        // Step 2: Fallback to L2 disk cache
+        if let Ok(Some(data)) = self.l2_disk.get(key).await {
+            // Populate L1 memory cache on L2 hit
+            let _ = self.l1_memory.put(key, &data).await;
+            return Ok(Some(data));
+        }
+
+        Ok(None)
     }
 }

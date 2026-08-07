@@ -57,10 +57,9 @@ impl CasEngine {
 
         let path = dir.join(&hex_hash);
         if !path.exists() {
-            let mut temp_path = path.clone();
-            temp_path.set_extension("tmp");
+            let unique_suffix = format!("{}.tmp", uuid::Uuid::new_v4());
+            let temp_path = dir.join(format!("{}.{}", hex_hash, unique_suffix));
             let mut file = fs::File::create(&temp_path).await?;
-            // In a production system we would compress this with zlib or zstd
             file.write_all(data).await?;
             file.sync_all().await?;
             fs::rename(temp_path, path).await?;
@@ -162,8 +161,8 @@ impl CasEngine {
 
         let target_path = target_dir.join(&hex_hash);
         if !target_path.exists() {
-            let mut temp_path = target_path.clone();
-            temp_path.set_extension("tmp");
+            let unique_suffix = format!("{}.tmp", uuid::Uuid::new_v4());
+            let temp_path = target_dir.join(format!("{}.{}", hex_hash, unique_suffix));
             let mut file = fs::File::create(&temp_path).await?;
             file.write_all(&tree_bytes).await?;
             file.sync_all().await?;
@@ -171,5 +170,49 @@ impl CasEngine {
         }
 
         Ok(Digest { bytes: digest_bytes })
+    }
+
+    pub async fn restore_directory(&self, tree_digest: &Digest, target_dir: impl AsRef<Path>) -> Result<(), CasError> {
+        let hex_hash = hex::encode(tree_digest.bytes);
+        let prefix = &hex_hash[0..2];
+        let tree_path = self.root.join("trees").join(prefix).join(&hex_hash);
+
+        if !tree_path.exists() {
+            return Err(CasError::DigestMismatch);
+        }
+
+        let tree_bytes = fs::read(tree_path).await?;
+        let tree: TreeObject = serde_json::from_slice(&tree_bytes)?;
+        let target_root = target_dir.as_ref();
+        fs::create_dir_all(target_root).await?;
+
+        for (name, entry) in tree.entries {
+            let dest_path = target_root.join(name);
+            match entry {
+                TreeEntry::File { digest, executable, .. } => {
+                    let mut bytes_hash = [0u8; 32];
+                    hex::decode_to_slice(&digest, &mut bytes_hash).map_err(|_| CasError::DigestMismatch)?;
+                    let file_digest = Digest { bytes: bytes_hash };
+                    if let Some(content) = self.read_blob(&file_digest).await? {
+                        fs::write(&dest_path, content).await?;
+                        #[cfg(unix)]
+                        if executable {
+                            use std::os::unix::fs::PermissionsExt;
+                            let mut perms = fs::metadata(&dest_path).await?.permissions();
+                            perms.set_mode(perms.mode() | 0o111);
+                            fs::set_permissions(&dest_path, perms).await?;
+                        }
+                    }
+                }
+                TreeEntry::Directory { digest } => {
+                    let mut dir_hash = [0u8; 32];
+                    hex::decode_to_slice(&digest, &mut dir_hash).map_err(|_| CasError::DigestMismatch)?;
+                    let subdir_digest = Digest { bytes: dir_hash };
+                    self.restore_directory(&subdir_digest, dest_path).await?;
+                }
+            }
+        }
+
+        Ok(())
     }
 }

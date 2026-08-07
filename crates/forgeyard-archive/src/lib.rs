@@ -1,4 +1,5 @@
 use flate2::write::GzEncoder;
+use flate2::read::GzDecoder;
 use flate2::Compression;
 use std::fs::File;
 use std::path::Path;
@@ -11,8 +12,20 @@ pub enum ArchiveError {
     Zip(#[from] zip::result::ZipError),
 }
 
+fn ensure_parent_dir(path: &Path) -> Result<(), std::io::Error> {
+    if let Some(parent) = path.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    Ok(())
+}
+
 pub fn create_tar_gz(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), ArchiveError> {
-    let tar_gz = File::create(dst)?;
+    let dst_path = dst.as_ref();
+    ensure_parent_dir(dst_path)?;
+
+    let tar_gz = File::create(dst_path)?;
     let enc = GzEncoder::new(tar_gz, Compression::default());
     let mut tar = tar::Builder::new(enc);
     tar.append_dir_all(".", src)?;
@@ -20,13 +33,25 @@ pub fn create_tar_gz(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(),
     Ok(())
 }
 
-pub fn create_zip(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), ArchiveError> {
-    let file = File::create(dst)?;
-    let mut zip = zip::ZipWriter::new(file);
-    let options =
-        zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+pub fn unpack_tar_gz(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), ArchiveError> {
+    let dst_path = dst.as_ref();
+    ensure_parent_dir(dst_path)?;
 
-    // Simplistic zip logic for directories
+    let tar_gz = File::open(src)?;
+    let dec = GzDecoder::new(tar_gz);
+    let mut archive = tar::Archive::new(dec);
+    archive.unpack(dst_path)?;
+    Ok(())
+}
+
+pub fn create_zip(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), ArchiveError> {
+    let dst_path = dst.as_ref();
+    ensure_parent_dir(dst_path)?;
+
+    let file = File::create(dst_path)?;
+    let mut zip = zip::ZipWriter::new(file);
+    let options = zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+
     let src_path = src.as_ref();
     if src_path.is_dir() {
         for entry in walkdir::WalkDir::new(src_path) {
@@ -50,5 +75,15 @@ pub fn create_zip(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), Ar
     }
 
     zip.finish()?;
+    Ok(())
+}
+
+pub fn unpack_zip(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), ArchiveError> {
+    let dst_path = dst.as_ref();
+    ensure_parent_dir(dst_path)?;
+
+    let file = File::open(src)?;
+    let mut archive = zip::ZipArchive::new(file)?;
+    archive.extract(dst_path)?;
     Ok(())
 }
