@@ -7,6 +7,15 @@ pub fn launch_ui() {
     dioxus::launch(App);
 }
 
+fn get_api_base_url() -> String {
+    if let Ok(url) = std::env::var("FORGEYARD_API_URL") {
+        if !url.trim().is_empty() {
+            return url;
+        }
+    }
+    "http://127.0.0.1:8080".to_string()
+}
+
 #[derive(Clone, Routable, Debug, PartialEq)]
 enum Route {
     #[route("/")]
@@ -17,6 +26,8 @@ enum Route {
     RunDetails { id: String },
     #[route("/agents")]
     AgentsList {},
+    #[route("/graph")]
+    KnowledgeGraph {},
     #[route("/settings")]
     Settings {},
 }
@@ -61,6 +72,11 @@ fn Sidebar() -> Element {
                 "Runners & Agents"
             }
             Link {
+                to: Route::KnowledgeGraph {},
+                class: "nav-link animate-fade-in delay-300",
+                "Codebase Graph"
+            }
+            Link {
                 to: Route::Settings {},
                 class: "nav-link animate-fade-in delay-300",
                 "Settings"
@@ -70,38 +86,28 @@ fn Sidebar() -> Element {
 }
 
 async fn fetch_runners() -> Result<forgeyard_api::ListRunnersResponse, reqwest::Error> {
-    reqwest::get("http://127.0.0.1:8080/api/v1/runners")
-        .await?
-        .json::<forgeyard_api::ListRunnersResponse>()
-        .await
+    let url = format!("{}/api/v1/runners", get_api_base_url());
+    reqwest::get(&url).await?.json::<forgeyard_api::ListRunnersResponse>().await
 }
 
 async fn fetch_status() -> Result<forgeyard_api::GetStatusResponse, reqwest::Error> {
-    reqwest::get("http://127.0.0.1:8080/api/v1/status/latest")
-        .await?
-        .json::<forgeyard_api::GetStatusResponse>()
-        .await
+    let url = format!("{}/api/v1/status/latest", get_api_base_url());
+    reqwest::get(&url).await?.json::<forgeyard_api::GetStatusResponse>().await
 }
 
 async fn fetch_runs() -> Result<forgeyard_api::ListRunsResponse, reqwest::Error> {
-    reqwest::get("http://127.0.0.1:8080/api/v1/runs")
-        .await?
-        .json::<forgeyard_api::ListRunsResponse>()
-        .await
+    let url = format!("{}/api/v1/runs", get_api_base_url());
+    reqwest::get(&url).await?.json::<forgeyard_api::ListRunsResponse>().await
 }
 
 async fn fetch_run_details(id: String) -> Result<forgeyard_api::GetStatusResponse, reqwest::Error> {
-    reqwest::get(&format!("http://127.0.0.1:8080/api/v1/status/{}", id))
-        .await?
-        .json::<forgeyard_api::GetStatusResponse>()
-        .await
+    let url = format!("{}/api/v1/status/{}", get_api_base_url(), id);
+    reqwest::get(&url).await?.json::<forgeyard_api::GetStatusResponse>().await
 }
 
 async fn fetch_run_logs(id: String) -> Result<forgeyard_api::GetLogsResponse, reqwest::Error> {
-    reqwest::get(&format!("http://127.0.0.1:8080/api/v1/logs/{}", id))
-        .await?
-        .json::<forgeyard_api::GetLogsResponse>()
-        .await
+    let url = format!("{}/api/v1/logs/{}", get_api_base_url(), id);
+    reqwest::get(&url).await?.json::<forgeyard_api::GetLogsResponse>().await
 }
 
 #[component]
@@ -225,6 +231,26 @@ fn AgentsList() -> Element {
                             None => rsx! { tr { td { colspan: 5, "Loading..." } } },
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn KnowledgeGraph() -> Element {
+    rsx! {
+        div {
+            class: "animate-fade-in",
+            h1 { class: "page-title", "Codebase Knowledge Graph" }
+            p { class: "page-subtitle", "AST Relationships & Token-Efficient Agent Context" }
+
+            div {
+                class: "card",
+                div { class: "card-header", style: "margin-bottom: 1rem;", "Graphify AST Context Summary" }
+                pre {
+                    style: "background: #111; padding: 1.25rem; border-radius: 8px; font-family: monospace; color: #64748b; line-height: 1.6;",
+                    "### Codebase Knowledge Graph Summary\n- Workspace Entities: Graphify AST Active\n- Embedded Storage: Stoolap OLAP/OLTP Vector Database\n- L1/L2 Caches: QuickCache (RAM) + Redb (Disk)\n\nNavigating workspace relationships across Rust, C++, Python, TypeScript, and Go..."
                 }
             }
         }
