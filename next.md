@@ -67,9 +67,11 @@ Based on a comprehensive architectural audit of the 37 workspace crates, the fol
 - **Dynamic Worker Quota Limits**: Integrate Linux Cgroup v2 (`memory.max`, `memory.high`, `cpu.max`, `io.max`) per job execution slice to prevent rogue build steps from starving system resources.
 - **Out-Of-Memory (OOM) Protection**: Real-time cgroup memory pressure listener providing graceful job cancellation before kernel OOM killer terminates core daemon services.
 
-### Phase 9: P2P Gossip / DHT CAS Artifact Distribution Mesh 🕸️
-- **Distributed Peer-to-Peer Chunk Sharing**: Integrate Kademlia DHT and Gossip protocol for multi-region edge runner clusters.
-- **Daemon Offloading**: Enables edge build nodes to fetch heavy CAS build artifacts and container layers directly from nearby peer runners, reducing central daemon bandwidth by 70-90%.
+### Phase 9: P2P `iroh` CAS Artifact Distribution Mesh 🕸️
+- **Pure-Rust `iroh` Architecture**: Replace legacy libp2p/Kademlia with `iroh` (`iroh-blobs`, `iroh-net`, `iroh-gossip`) for native QUIC-based peer-to-peer artifact distribution.
+- **Native BLAKE3 Verified Streaming (`iroh-blobs` / BAO)**: 100% bit-for-bit alignment with Forgeyard's BLAKE3 hashing standard for zero-copy streaming verified transfers over QUIC streams.
+- **NAT Traversal & DERP Hole Punching (`iroh-net`)**: Direct P2P connectivity between edge runner nodes operating behind strict corporate firewalls and NATs.
+- **High-Performance Gossip (`iroh-gossip`)**: Efficient HyParView / PlumTree gossip broadcasting for real-time runner capability discovery and CAS chunk availability, offloading central daemon bandwidth by 80-95%.
 
 ### Phase 10: Autonomous AI Pipeline Remediation & AST Patch Proposal 🤖
 - **Automated Fix Generation**: Combine Tree-Sitter AST parser context (`forgeyard-analyzer`), compiler error tracebacks (`CargoTestParser`, `JUnitXmlParser`), and LLM context trimming (`RtkCompressor`) to generate automated fix patches (`.patch`) for broken builds.
