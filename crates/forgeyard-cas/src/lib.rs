@@ -445,4 +445,73 @@ mod tests {
         let endpoint = IrohNatTunnel::resolve_p2p_endpoint("node-1", "derp.iroh.network");
         assert!(endpoint.contains("derp://derp.iroh.network/node/node-1"));
     }
+
+    #[test]
+    fn test_p2p_cas_seeder() {
+        let mut seeder = P2pCasSeeder::new();
+        let digest = Digest { bytes: [7u8; 32] };
+        seeder.register_seed(digest.clone(), "peer-edge-10", 1024 * 1024);
+        seeder.register_seed(digest.clone(), "peer-edge-20", 1024 * 1024);
+
+        let seed = seeder.find_optimal_seed_peers(&digest).unwrap();
+        assert_eq!(seed.seed_nodes.len(), 2);
+        assert!(seed.seed_nodes.contains(&"peer-edge-10".to_string()));
+        assert!(seeder.calculate_swarm_health() > 0.0);
+    }
+}
+
+/// Phase 24: Distributed P2P CAS Cache Coalescing & Seeding
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct P2pSeedDescriptor {
+    pub digest: Digest,
+    pub seed_nodes: Vec<String>,
+    pub total_bytes: u64,
+    pub health_score: f32,
+}
+
+#[derive(Default)]
+pub struct P2pCasSeeder {
+    swarm_map: std::collections::HashMap<String, Vec<String>>,
+    size_map: std::collections::HashMap<String, u64>,
+}
+
+impl P2pCasSeeder {
+    pub fn new() -> Self {
+        Self {
+            swarm_map: std::collections::HashMap::new(),
+            size_map: std::collections::HashMap::new(),
+        }
+    }
+
+    pub fn register_seed(&mut self, digest: Digest, peer_id: &str, size_bytes: u64) {
+        let hex_key = hex::encode(digest.bytes);
+        let peers = self.swarm_map.entry(hex_key.clone()).or_default();
+        if !peers.contains(&peer_id.to_string()) {
+            peers.push(peer_id.to_string());
+        }
+        self.size_map.insert(hex_key, size_bytes);
+    }
+
+    pub fn find_optimal_seed_peers(&self, digest: &Digest) -> Option<P2pSeedDescriptor> {
+        let hex_key = hex::encode(digest.bytes);
+        let peers = self.swarm_map.get(&hex_key)?;
+        let size = self.size_map.get(&hex_key).copied().unwrap_or(0);
+
+        let health_score = (peers.len() as f32 / 5.0).min(1.0);
+
+        Some(P2pSeedDescriptor {
+            digest: digest.clone(),
+            seed_nodes: peers.clone(),
+            total_bytes: size,
+            health_score,
+        })
+    }
+
+    pub fn calculate_swarm_health(&self) -> f32 {
+        if self.swarm_map.is_empty() {
+            return 0.0;
+        }
+        let total_peers: usize = self.swarm_map.values().map(|v| v.len()).sum();
+        total_peers as f32 / self.swarm_map.len() as f32
+    }
 }

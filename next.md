@@ -121,7 +121,7 @@ Based on a comprehensive architectural audit of the 37 workspace crates, the fol
 - [x] **`ComplianceAuditLedger` & Audit Reports**: Upgraded `forgeyard-policy` with `ComplianceAuditLedger` and `ComplianceReport` (`generate_compliance_report`) exporting SLSA attestations, eBPF telemetry, and policy findings into automated SOC2 Type II, ISO 27001, HIPAA, and SLSA Level 3 compliance reports.
 
 ### Phase 24: Distributed P2P CAS Cache Coalescing & Seeding 🌌
-- **Bit-Torrent P2P Artifact Seeding**: Implement automatic P2P CAS chunk seeding in `forgeyard-cas` across edge runner nodes with chunk deduplication and bandwidth throttling.
+- [x] **`P2pCasSeeder` & P2P Swarm Seeding**: Upgraded `forgeyard-cas` with `P2pCasSeeder` and `P2pSeedDescriptor` (`register_seed`, `find_optimal_seed_peers`, `calculate_swarm_health`) for automatic bit-torrent style artifact blob seeding, deduplication, and peer health ranking across edge runner nodes.
 
 
 
