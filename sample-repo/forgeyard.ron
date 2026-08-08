@@ -1,0 +1,24 @@
+ForgeyardConfig(
+    version: 1,
+    project: ProjectConfig(
+        name: "my-project",
+    ),
+    pipelines: {
+        "default": PipelineConfig(
+            triggers: [],
+            stages: ["build", "test"],
+            jobs: {
+                "build": JobConfig(
+                    needs: [],
+                    command: ["cargo", "build"],
+                    matrix: None,
+                ),
+                "test": JobConfig(
+                    needs: ["build"],
+                    command: ["cargo", "test"],
+                    matrix: None,
+                ),
+            },
+        ),
+    },
+)

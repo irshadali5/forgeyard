@@ -38,6 +38,7 @@ members = [
     "crates/forgeyard-device-lab",
     "crates/forgeyard-test-report", "crates/forgeyard-analyzer",
 ]
+exclude = ["test-repos", "sample-repo"]
 resolver = "2"
 
 [workspace.dependencies]

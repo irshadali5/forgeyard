@@ -39,7 +39,6 @@ impl QuicServer {
         let service_type = "_forgeyard._udp.local.";
         let instance_name = "forgeyard_daemon";
         let host_name = "forgeyard.local.";
-        let port = 4433;
         let properties = [("version", "0.1.0")];
 
         let service_info = ServiceInfo::new(
@@ -58,7 +57,7 @@ impl QuicServer {
         let job_rx = Arc::new(Mutex::new(job_rx));
 
         tokio::spawn(async move {
-            info!("QUIC server listening on 0.0.0.0:4433");
+            info!("QUIC server listening on 0.0.0.0:{}", port);
 
             while let Some(conn) = endpoint.accept().await {
                 let connection = match conn.await {

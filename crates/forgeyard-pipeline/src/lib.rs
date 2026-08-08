@@ -94,7 +94,7 @@ impl PipelineCompiler {
                 // Map execution spec from command
                 // In a production app, we would detect container vs command here. We default to shell for config string vectors.
                 let program = "bash".to_string();
-                let arguments = vec!["-c".to_string(), job_cfg.command.join(" \n ")];
+                let arguments = vec!["-c".to_string(), job_cfg.command.join(" ")];
 
                 let execution = ExecutionSpec::Command {
                     program,

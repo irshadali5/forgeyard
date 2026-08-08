@@ -84,7 +84,19 @@ ForgeyardConfig(
     pipelines: {
         "default": PipelineConfig(
             triggers: [],
-            jobs: [],
+            stages: ["build", "test"],
+            jobs: {
+                "build": JobConfig(
+                    needs: [],
+                    command: ["cargo", "build"],
+                    matrix: None,
+                ),
+                "test": JobConfig(
+                    needs: ["build"],
+                    command: ["cargo", "test"],
+                    matrix: None,
+                ),
+            },
         ),
     },
 )
@@ -114,7 +126,9 @@ ForgeyardConfig(
             }
         }
         Commands::Run { watch } => {
-            println!("Submitting run to local Forgeyard Daemon...");
+            let base_url = daemon_url();
+            let auth_token = std::env::var("FORGEYARD_TOKEN").unwrap_or_else(|_| "default_token".to_string());
+            println!("Submitting run to local Forgeyard Daemon at {}...", base_url);
             let client = reqwest::Client::new();
             let req = forgeyard_api::SubmitRunRequest {
                 workspace_path: std::env::current_dir().unwrap().to_string_lossy().to_string(),
@@ -122,7 +136,8 @@ ForgeyardConfig(
                 override_branch: None,
             };
 
-            let run_id = match client.post("http://127.0.0.1:8080/api/v1/run")
+            let run_id = match client.post(format!("{}/api/v1/run", base_url))
+                .header("Authorization", format!("Bearer {}", auth_token))
                 .json(&req)
                 .send()
                 .await {
@@ -136,7 +151,7 @@ ForgeyardConfig(
                     }
                 },
                 Err(e) => {
-                    miette::bail!("Failed to contact Forgeyard daemon. Is it running on 127.0.0.1:8080? Error: {}", e);
+                    miette::bail!("Failed to contact Forgeyard daemon at {}. Error: {}", base_url, e);
                 }
             };
 
@@ -285,8 +300,15 @@ ForgeyardConfig(
     Ok(())
 }
 
+fn daemon_url() -> String {
+    std::env::var("FORGEYARD_DAEMON_URL").unwrap_or_else(|_| "http://127.0.0.1:8080".to_string())
+}
+
 async fn print_status(client: &reqwest::Client, target_run: &str) -> Result<bool> {
-    match client.get(format!("http://127.0.0.1:8080/api/v1/status/{}", target_run)).send().await {
+    let auth_token = std::env::var("FORGEYARD_TOKEN").unwrap_or_else(|_| "default_token".to_string());
+    match client.get(format!("{}/api/v1/status/{}", daemon_url(), target_run))
+        .header("Authorization", format!("Bearer {}", auth_token))
+        .send().await {
         Ok(resp) => {
             if resp.status().is_success() {
                 let res: forgeyard_api::GetStatusResponse = resp.json().await.into_diagnostic()?;

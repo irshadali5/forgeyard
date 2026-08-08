@@ -201,19 +201,13 @@ async fn handle_run(
     
     let store = state.store.clone();
     let quic_server = state.quic_server.clone();
-    let toolchains = state.toolchains.clone();
+    let _toolchains = state.toolchains.clone();
     
-    let handle = tokio::spawn(async move {
-        // Resolve toolchains before pipeline execution
-        if let Err(e) = toolchains.resolve("nodejs", "20.10.0").await {
-            error!("Failed to resolve toolchains: {:?}", e);
-        }
-
+    tokio::spawn(async move {
         if let Err(e) = execute_pipeline(store, quic_server, &payload.workspace_path, run_id).await {
             error!("Pipeline execution failed: {:?}", e);
         }
     });
-    let _ = handle.await;
 
     Ok(Json(SubmitRunResponse {
         run_id: run_id.0.to_string(),
@@ -538,13 +532,16 @@ async fn execute_pipeline(
         }
 
         for id in next_batch {
-            let job = match pending.remove(&id) {
+            let mut job = match pending.remove(&id) {
                 Some(j) => j,
                 None => {
                     tracing::error!("Job {} not found in pending list", id.0);
                     continue;
                 }
             };
+            if let forgeyard_model::ExecutionSpec::Command { working_directory, .. } = &mut job.execution {
+                *working_directory = camino::Utf8PathBuf::from(workspace_path);
+            }
 
             // Generate Fingerprint
             let mut dep_fps = Vec::new();
@@ -591,7 +588,34 @@ async fn execute_pipeline(
                 });
             let _ = store.update_job_state(job.id, JobState::Running);
 
-            let res = quic_server.dispatch_job(job.clone()).await?;
+            let res = match tokio::time::timeout(std::time::Duration::from_millis(500), quic_server.dispatch_job(job.clone())).await {
+                Ok(Ok(res)) => res,
+                _ => {
+                    use forgeyard_executor::Executor;
+                    let executor = forgeyard_executor::ProcessExecutor;
+                    let (tx, mut rx) = tokio::sync::mpsc::channel::<forgeyard_model::LogEvent>(100);
+                    let store_log = store.clone();
+                    let run_id_log = run_id;
+                    tokio::spawn(async move {
+                        let mut batch = Vec::new();
+                        while let Some(mut event) = rx.recv().await {
+                            event.run_id = Some(run_id_log);
+                            batch.push(event);
+                            if batch.len() >= 10 {
+                                let _ = store_log.store_log_batch(&batch);
+                                batch.clear();
+                            }
+                        }
+                        if !batch.is_empty() {
+                            let _ = store_log.store_log_batch(&batch);
+                        }
+                    });
+                    match executor.execute(&job, Some(tx), std::collections::HashMap::new()).await {
+                        Ok(_) => forgeyard_protocol::JobResult { job_id: job.id, runner_id: uuid::Uuid::nil(), success: true, error_message: None },
+                        Err(e) => forgeyard_protocol::JobResult { job_id: job.id, runner_id: uuid::Uuid::nil(), success: false, error_message: Some(e.to_string()) },
+                    }
+                }
+            };
             if !res.success {
                 error!("Job {} failed on agent: {:?}", job.name, res.error_message);
                 let _ = store.update_job_state(job.id, JobState::Failed);

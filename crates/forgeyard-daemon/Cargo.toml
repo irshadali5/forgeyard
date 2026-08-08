@@ -15,6 +15,7 @@ forgeyard-secrets = { path = "../forgeyard-secrets" }
 forgeyard-signing = { path = "../forgeyard-signing" }
 forgeyard-provenance = { path = "../forgeyard-provenance" }
 forgeyard-detector = { path = "../forgeyard-detector" }
+forgeyard-executor = { path = "../forgeyard-executor" }
 forgeyard-api = { path = "../forgeyard-api" }
 forgeyard-analyzer = { path = "../forgeyard-analyzer" }
 forgeyard-events = { path = "../forgeyard-events" }
@@ -42,4 +43,5 @@ postcard.workspace = true
 futures.workspace = true
 git2 = "0.21.0"
 tempfile = "3.27.0"
+camino = "1.1"
 forgeyard-toolchains = { version = "0.1.0", path = "../forgeyard-toolchains" }

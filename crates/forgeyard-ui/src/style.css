@@ -1,27 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  /* HSL Tailored Dark Theme */
-  --bg-base: 240 10% 4%;
-  --bg-surface: 240 10% 8%;
-  --bg-surface-elevated: 240 10% 12%;
+  /* HSL Premium Tailored Dark Theme */
+  --bg-base: 240 12% 4%;
+  --bg-surface: 240 12% 8%;
+  --bg-surface-elevated: 240 12% 14%;
   
-  --text-primary: 210 20% 98%;
-  --text-secondary: 210 20% 70%;
-  --text-muted: 210 20% 50%;
+  --text-primary: 210 25% 98%;
+  --text-secondary: 210 20% 75%;
+  --text-muted: 210 15% 55%;
   
-  --accent-primary: 260 70% 60%;
-  --accent-hover: 260 70% 65%;
-  --accent-success: 140 70% 45%;
-  --accent-danger: 350 70% 55%;
-  --accent-warning: 40 90% 55%;
+  --accent-primary: 265 85% 65%;
+  --accent-hover: 265 85% 72%;
+  --accent-success: 142 76% 45%;
+  --accent-danger: 350 84% 60%;
+  --accent-warning: 38 92% 56%;
+  --accent-info: 199 89% 58%;
   
-  --border-subtle: 240 10% 15%;
-  --border-strong: 240 10% 25%;
+  --border-subtle: 240 10% 16%;
+  --border-strong: 240 10% 28%;
   
-  --glass-bg: rgba(20, 20, 25, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.05);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  --glass-bg: rgba(18, 18, 26, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+  --glow-primary: 0 0 24px 0 rgba(168, 85, 247, 0.35);
 }
 
 * {

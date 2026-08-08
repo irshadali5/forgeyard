@@ -51,10 +51,18 @@ impl Executor for ProcessExecutor {
 
         let mut cmd = Command::new(&program);
         cmd.args(&args);
-        cmd.current_dir(cwd.as_path());
+        if cwd.as_std_path().exists() {
+            cmd.current_dir(cwd.as_path());
+        }
         
-        // Setup clean environment, but inherit essential ones if needed (optional)
-        cmd.env_clear();
+        // Inherit parent environment variables (PATH, HOME, USER, etc.)
+        cmd.envs(std::env::vars());
+        let current_path = std::env::var("PATH").unwrap_or_else(|_| "/usr/local/bin:/usr/bin:/bin".to_string());
+        let home_dir = std::env::var("HOME").unwrap_or_else(|_| "/home/irshad".to_string());
+        let cargo_bin = format!("{}/.cargo/bin", home_dir);
+        let extended_path = format!("{}:{}:/usr/local/bin:/usr/bin:/bin", cargo_bin, current_path);
+        cmd.env("PATH", extended_path);
+
         for (k, v) in &env_vars {
             cmd.env(k, v);
         }
