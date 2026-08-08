@@ -235,7 +235,9 @@ impl Executor for SandboxExecutor {
 pub struct CgroupGovernor {
     pub cgroup_path: std::path::PathBuf,
     pub max_memory_bytes: Option<u64>,
+    pub high_memory_bytes: Option<u64>,
     pub max_cpu_quota_us: Option<u64>,
+    pub max_io_bytes_per_sec: Option<u64>,
 }
 
 impl CgroupGovernor {
@@ -243,7 +245,9 @@ impl CgroupGovernor {
         Self {
             cgroup_path: std::path::PathBuf::from("/sys/fs/cgroup/forgeyard").join(job_id),
             max_memory_bytes: None,
+            high_memory_bytes: None,
             max_cpu_quota_us: None,
+            max_io_bytes_per_sec: None,
         }
     }
 
@@ -263,12 +267,54 @@ impl CgroupGovernor {
             let _ = std::fs::write(path, mem_max.to_string());
         }
 
+        if let Some(mem_high) = self.high_memory_bytes {
+            let path = self.cgroup_path.join("memory.high");
+            let _ = std::fs::write(path, mem_high.to_string());
+        }
+
         if let Some(cpu_quota) = self.max_cpu_quota_us {
             let path = self.cgroup_path.join("cpu.max");
             let _ = std::fs::write(path, format!("{} 100000", cpu_quota));
         }
 
+        if let Some(io_max) = self.max_io_bytes_per_sec {
+            let path = self.cgroup_path.join("io.max");
+            let _ = std::fs::write(path, format!("8:0 rbps={} wbps={}", io_max, io_max));
+        }
+
         Ok(())
+    }
+
+    pub fn check_oom_events(&self) -> bool {
+        if !Self::is_cgroup_v2_available() {
+            return false;
+        }
+
+        let events_path = self.cgroup_path.join("memory.events");
+        if let Ok(content) = std::fs::read_to_string(events_path) {
+            for line in content.lines() {
+                if line.starts_with("oom_kill") {
+                    if let Some(val) = line.split_whitespace().nth(1) {
+                        if let Ok(count) = val.parse::<u64>() {
+                            return count > 0;
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+}
+
+pub struct OomPressureListener;
+
+impl OomPressureListener {
+    pub fn is_system_under_oom_pressure() -> bool {
+        let pressure_path = std::path::Path::new("/proc/pressure/memory");
+        if let Ok(content) = std::fs::read_to_string(pressure_path) {
+            return content.contains("some avg10=") && !content.contains("some avg10=0.00");
+        }
+        false
     }
 }
 
@@ -278,8 +324,20 @@ mod tests {
 
     #[test]
     fn test_cgroup_governor_init() {
-        let governor = CgroupGovernor::new("job-test-1");
+        let mut governor = CgroupGovernor::new("job-test-1");
+        governor.max_memory_bytes = Some(512 * 1024 * 1024);
+        governor.high_memory_bytes = Some(400 * 1024 * 1024);
+        governor.max_cpu_quota_us = Some(50000);
+        governor.max_io_bytes_per_sec = Some(10 * 1024 * 1024);
+
         assert!(governor.cgroup_path.to_str().unwrap().contains("job-test-1"));
         let _ = governor.apply_limits();
+        let is_oom = governor.check_oom_events();
+        assert!(!is_oom);
+    }
+
+    #[test]
+    fn test_oom_pressure_listener() {
+        let _under_pressure = OomPressureListener::is_system_under_oom_pressure();
     }
 }

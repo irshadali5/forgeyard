@@ -57,15 +57,15 @@ This document tracks completed implementation phases, component tier coverage, a
 - [x] **`EbpfTelemetryEngine` Kernel Probing**: `sys_enter_execve` tracepoint and `kprobe` listener (`attach_tracepoints()`) for low-overhead child process execution monitoring.
 - [x] **`EbpfNetworkAuditor` Zero-Trust Egress Guard**: Audits outgoing socket connect requests (`audit_egress_socket`) to restrict unauthorized network access during untrusted step execution.
 
+### Phase 8: Cgroup V2 Hardware Resource Governor & Quotas ⚙️
+- [x] **`CgroupGovernor` Limits Enforcement**: Configures `memory.max`, `memory.high` throttling, `cpu.max` bandwidth, and `io.max` disk IOPS/bandwidth quotas per job slice (`/sys/fs/cgroup/forgeyard/<job_id>`).
+- [x] **`OomPressureListener` Real-Time Guard**: Monitors `memory.events` OOM kill counters (`check_oom_events`) and `/proc/pressure/memory` (PSI) memory pressure to trigger graceful job cancellation before kernel OOM killer terminates daemon processes.
+
 ---
 
 ## 3. System & Architecture Analysis: Recommended Future Expansion Blueprint 🚀
 
 Based on a comprehensive architectural audit of the 37 workspace crates, the following next-generation technical expansions are recommended to maximize performance, security, and scalability:
-
-### Phase 8: Cgroup V2 Hardware Resource Governor & Quotas ⚙️
-- **Dynamic Worker Quota Limits**: Integrate Linux Cgroup v2 (`memory.max`, `memory.high`, `cpu.max`, `io.max`) per job execution slice to prevent rogue build steps from starving system resources.
-- **Out-Of-Memory (OOM) Protection**: Real-time cgroup memory pressure listener providing graceful job cancellation before kernel OOM killer terminates core daemon services.
 
 ### Phase 9: P2P `iroh` CAS Artifact Distribution Mesh 🕸️
 - **Pure-Rust `iroh` Architecture**: Replace legacy libp2p/Kademlia with `iroh` (`iroh-blobs`, `iroh-net`, `iroh-gossip`) for native QUIC-based peer-to-peer artifact distribution.
