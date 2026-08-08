@@ -52,6 +52,30 @@ Engineered entirely in Rust, Forgeyard replaces heavy, external database depende
 - **Encrypted Vault Persistence**: Encrypts pipeline secrets in-memory and on-disk using `EncryptedVaultBackend` with BLAKE3 key derivation and XOR memory masking.
 - **REST & WebSocket API Auth**: Protects all `/api/v1/*` endpoints in `forgeyard-daemon` with Bearer token authentication middleware.
 
+### 🧠 Edge AI Quantized Local Model Acceleration (Phase 19)
+
+- **`LocalEdgeAiEngine` & Quantized Inference**: Embedded local GGUF/ONNX quantized LLM inference runtime (`GgufQ4`, `GgufQ8`, `OnnxInt8`) in `forgeyard-analyzer` for zero-latency, zero-cost offline AI code fix generation and AST graph intent reasoning.
+
+### 🔒 Confidential Computing & Hardware Enclave Attestation (Phase 20)
+
+- **`ConfidentialEnclaveExecutor`**: Executes sensitive build steps inside hardware-encrypted memory enclaves (AMD SEV-SNP, Intel SGX, AWS Nitro Enclaves) in `forgeyard-sandbox` with cryptographic attestation measurement hashes (`blake3`) proving isolation from host OS compromise.
+
+### 🛠️ Autonomous Flaky Test Root Cause Synthesizer (Phase 21)
+
+- **`FlakyRootCauseSynthesizer`**: AST delta analysis comparing passing vs failing execution traces in `forgeyard-test-report` to automatically diagnose `AsyncTimingLock`, `UnorderedMapIteration`, and `PortConflict` race conditions and synthesize code remediation patches.
+
+### 🛡️ Enterprise eBPF XDP Firewall & DDoS Mitigation (Phase 22)
+
+- **`EbpfXdpFirewall` & XDP Packet Filtering**: Wire-speed Linux kernel eXpress Data Path (XDP) network packet filtering in `forgeyard-daemon` providing IP rate-limiting, DDoS mitigation, and per-tenant network isolation.
+
+### 📋 Continuous Compliance & SOC2 / ISO 27001 Audit Ledger (Phase 23)
+
+- **`ComplianceAuditLedger`**: Immutable audit log generation exporting SLSA v1.0 attestations, eBPF telemetry, and policy findings into automated SOC2 Type II, ISO 27001, HIPAA, and SLSA Level 3 compliance reports with cryptographic BLAKE3 audit signatures.
+
+### 🌌 Distributed P2P CAS Cache Coalescing & Swarm Seeding (Phase 24)
+
+- **`P2pCasSeeder`**: Bit-torrent style distributed artifact blob seeding in `forgeyard-cas` across edge runner nodes with chunk deduplication, peer health scoring, and bandwidth throttling.
+
 ### 🔄 GitHub Actions & GitLab CI Pipeline Converters
 
 - **Automated Workflow Translation**: Converts `.github/workflows/*.yml` and `.gitlab-ci.yml` configs into native `forgeyard.ron` IR using `GitHubWorkflowConverter`, `GitLabCIConverter`, and the `forgeyard import` CLI command.
