@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 forgeyard-config = { path = "../forgeyard-config" }
+blake3 = { workspace = true }

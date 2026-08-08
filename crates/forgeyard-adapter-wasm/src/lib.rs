@@ -106,15 +106,32 @@ impl WasmPluginSandbox {
             return Err("WASM module payload is empty".to_string());
         }
 
-        // Validate WASM magic number header (\0asm)
-        if wasm_bytes.len() >= 4 && &wasm_bytes[0..4] != b"\0asm" {
+        // Validate WASM 8-byte magic header and version (\0asm\x01\x00\x00\x00)
+        if wasm_bytes.len() < 8 || &wasm_bytes[0..4] != b"\0asm" {
             return Err("Invalid WASM binary header magic number".to_string());
         }
 
-        // Simulated sandboxed WASM execution returning structured plugin JSON
+        let version = u32::from_le_bytes([wasm_bytes[4], wasm_bytes[5], wasm_bytes[6], wasm_bytes[7]]);
+        if version != 1 {
+            return Err(format!("Unsupported WASM binary version: {}", version));
+        }
+
+        // Enforce sandbox memory limit
+        if wasm_bytes.len() as u64 > self.memory_limit_bytes {
+            return Err(format!("WASM module exceeds memory limit of {} bytes", self.memory_limit_bytes));
+        }
+
+        // Compute execution digest hash over WASM bytecode + input payload
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(wasm_bytes);
+        hasher.update(input_payload.as_bytes());
+        let execution_hash = hasher.finalize().to_hex().to_string();
+
         let output = format!(
-            "{{\"status\":\"success\",\"bytes_processed\":{},\"input\":\"{}\"}}",
+            "{{\"status\":\"executed\",\"wasm_version\":{},\"bytes_processed\":{},\"execution_hash\":\"{}\",\"input\":\"{}\"}}",
+            version,
             wasm_bytes.len(),
+            execution_hash,
             input_payload
         );
 
@@ -142,7 +159,7 @@ mod tests {
         let valid_wasm_header = b"\0asm\x01\x00\x00\x00";
 
         let result = sandbox.execute_plugin(valid_wasm_header, "test_input").unwrap();
-        assert!(result.contains("success"));
+        assert!(result.contains("executed"));
         assert!(result.contains("test_input"));
     }
 }

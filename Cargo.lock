@@ -2246,6 +2246,7 @@ dependencies = [
 name = "forgeyard-adapter-wasm"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "forgeyard-config",
 ]
 
