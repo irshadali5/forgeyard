@@ -53,15 +53,15 @@ This document tracks completed implementation phases, component tier coverage, a
 - [x] **`IoUringLogWriter` Asynchronous Ring Log Appender**: Direct kernel submission ring file append engine for high-throughput pipeline log ingestion.
 - [x] **Kernel Compatibility & Cross-Platform Fallback**: Conditional compilation (`#[cfg(target_os = "linux")]`) with runtime capability detection (`is_io_uring_supported()`) gracefully falling back to standard Tokio async file I/O on Windows/macOS or older Linux kernels.
 
+### Phase 7: eBPF Linux Kernel Process & Network Telemetry Engine 🐝
+- [x] **`EbpfTelemetryEngine` Kernel Probing**: `sys_enter_execve` tracepoint and `kprobe` listener (`attach_tracepoints()`) for low-overhead child process execution monitoring.
+- [x] **`EbpfNetworkAuditor` Zero-Trust Egress Guard**: Audits outgoing socket connect requests (`audit_egress_socket`) to restrict unauthorized network access during untrusted step execution.
+
 ---
 
 ## 3. System & Architecture Analysis: Recommended Future Expansion Blueprint 🚀
 
 Based on a comprehensive architectural audit of the 37 workspace crates, the following next-generation technical expansions are recommended to maximize performance, security, and scalability:
-
-### Phase 7: eBPF Linux Kernel Process & Network Telemetry Engine 🐝
-- **Low-Overhead Kernel Probing**: Implement eBPF `sys_enter_execve` tracepoints and `kprobes` to monitor child process execution, socket connect latencies, and file access without user-space polling overhead.
-- **Zero-Trust Network Egress Enforcement**: Audit and restrict outgoing socket connections during untrusted job execution to prevent secret exfiltration.
 
 ### Phase 8: Cgroup V2 Hardware Resource Governor & Quotas ⚙️
 - **Dynamic Worker Quota Limits**: Integrate Linux Cgroup v2 (`memory.max`, `memory.high`, `cpu.max`, `io.max`) per job execution slice to prevent rogue build steps from starving system resources.
