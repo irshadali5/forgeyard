@@ -64,43 +64,130 @@ pub struct JUnitXmlParser;
 
 impl ReportParser for JUnitXmlParser {
     fn parse(&self, raw_output: &str) -> Result<TestReport, String> {
-        let mut results = Vec::new();
-        let mut suite_name = "JUnit Test Suite".to_string();
+        use quick_xml::events::Event;
+        use quick_xml::reader::Reader;
 
-        for line in raw_output.lines() {
-            let trimmed = line.trim();
-            if trimmed.contains("<testsuite") {
-                if let Some(name_start) = trimmed.find("name=\"") {
-                    let rest = &trimmed[name_start + 6..];
-                    if let Some(name_end) = rest.find('"') {
-                        suite_name = rest[..name_end].to_string();
+        let mut reader = Reader::from_str(raw_output);
+        reader.config_mut().trim_text(true);
+
+        let mut suite_name = "JUnit Test Suite".to_string();
+        let mut results = Vec::new();
+
+        let mut buf = Vec::new();
+        let mut current_test_name = String::new();
+        let mut current_duration_ms = 0u64;
+        let mut is_failed = false;
+        let mut failure_msg = None;
+        let mut in_testcase = false;
+
+        loop {
+            match reader.read_event_into(&mut buf) {
+                Ok(Event::Start(ref e)) => {
+                    let name_bytes = e.name();
+                    let name = String::from_utf8_lossy(name_bytes.as_ref());
+                    if name == "testsuite" {
+                        for attr in e.attributes().flatten() {
+                            if attr.key.as_ref() == b"name" {
+                                if let Ok(val) = attr.decode_and_unescape_value(reader.decoder()) {
+                                    suite_name = val.to_string();
+                                }
+                            }
+                        }
+                    } else if name == "testcase" {
+                        in_testcase = true;
+                        is_failed = false;
+                        failure_msg = None;
+                        for attr in e.attributes().flatten() {
+                            if attr.key.as_ref() == b"name" {
+                                if let Ok(val) = attr.decode_and_unescape_value(reader.decoder()) {
+                                    current_test_name = val.to_string();
+                                }
+                            } else if attr.key.as_ref() == b"time" {
+                                if let Ok(val) = attr.decode_and_unescape_value(reader.decoder()) {
+                                    current_duration_ms = (val.parse::<f64>().unwrap_or(0.0) * 1000.0) as u64;
+                                }
+                            }
+                        }
+                    } else if name == "failure" || name == "error" {
+                        is_failed = true;
+                        for attr in e.attributes().flatten() {
+                            if attr.key.as_ref() == b"message" {
+                                if let Ok(val) = attr.decode_and_unescape_value(reader.decoder()) {
+                                    failure_msg = Some(val.to_string());
+                                }
+                            }
+                        }
+                        if failure_msg.is_none() {
+                            failure_msg = Some("JUnit assertion failure".to_string());
+                        }
                     }
                 }
-            } else if trimmed.contains("<testcase") {
-                let name = if let Some(name_start) = trimmed.find("name=\"") {
-                    let rest = &trimmed[name_start + 6..];
-                    if let Some(name_end) = rest.find('"') {
-                        rest[..name_end].to_string()
-                    } else {
-                        "unknown_test".to_string()
+                Ok(Event::Empty(ref e)) => {
+                    let name_bytes = e.name();
+                    let name = String::from_utf8_lossy(name_bytes.as_ref());
+                    if name == "testcase" {
+                        let mut tname = String::new();
+                        let mut tdur = 0u64;
+                        for attr in e.attributes().flatten() {
+                            if attr.key.as_ref() == b"name" {
+                                if let Ok(val) = attr.decode_and_unescape_value(reader.decoder()) {
+                                    tname = val.to_string();
+                                }
+                            } else if attr.key.as_ref() == b"time" {
+                                if let Ok(val) = attr.decode_and_unescape_value(reader.decoder()) {
+                                    tdur = (val.parse::<f64>().unwrap_or(0.0) * 1000.0) as u64;
+                                }
+                            }
+                        }
+                        results.push(TestResult {
+                            name: tname,
+                            passed: true,
+                            duration_ms: tdur,
+                            error_message: None,
+                        });
                     }
-                } else {
-                    "unknown_test".to_string()
-                };
+                }
+                Ok(Event::End(ref e)) => {
+                    let name_bytes = e.name();
+                    let name = String::from_utf8_lossy(name_bytes.as_ref());
+                    if name == "testcase" && in_testcase {
+                        results.push(TestResult {
+                            name: current_test_name.clone(),
+                            passed: !is_failed,
+                            duration_ms: current_duration_ms,
+                            error_message: failure_msg.clone(),
+                        });
+                        in_testcase = false;
+                    }
+                }
+                Ok(Event::Eof) => break,
+                Err(_) => break,
+                _ => (),
+            }
+            buf.clear();
+        }
 
-                let failed = trimmed.contains("<failure") || raw_output.contains(&format!("name=\"{}\"", name)) && raw_output.contains("<failure");
-                let error_message = if failed {
-                    Some("JUnit test assertion failure".to_string())
-                } else {
-                    None
-                };
-
-                results.push(TestResult {
-                    name,
-                    passed: !failed,
-                    duration_ms: 10,
-                    error_message,
-                });
+        if results.is_empty() {
+            for line in raw_output.lines() {
+                if line.contains("<testcase") {
+                    let name = line
+                        .find("name=\"")
+                        .map(|i| &line[i + 6..])
+                        .and_then(|s| s.find('"').map(|j| &s[..j]))
+                        .unwrap_or("test")
+                        .to_string();
+                    let failed = line.contains("<failure");
+                    results.push(TestResult {
+                        name,
+                        passed: !failed,
+                        duration_ms: 10,
+                        error_message: if failed {
+                            Some("JUnit failure".to_string())
+                        } else {
+                            None
+                        },
+                    });
+                }
             }
         }
 
