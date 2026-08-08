@@ -14,44 +14,47 @@ This document tracks the audit of custom implementations across Forgeyard's 37 w
 | **`forgeyard-adapter-cargo`** | Static pipeline generation without dependency graph querying | [`guppy`](https://crates.io/crates/guppy) | **REFACTORED**: Full `CargoGraphTracker` query engine for workspace topological ordering, transitive & reverse impact analysis. |
 | **`forgeyard-detector`** | Ad-hoc `CargoToml` struct & manual TOML parsing | [`guppy`](https://crates.io/crates/guppy) | **REFACTORED**: In-process `PackageGraph` framework dependency detection. |
 | **`forgeyard-policy`** | Custom string matching rules (`command.contains(...)`) | [`regex`](https://crates.io/crates/regex) (`RegexSet`) | **REFACTORED**: High-throughput multi-pattern security rule inspection and secret exposure guarding. |
+| **`forgeyard-policy`** | Manual policy checks for dependency licenses | `LicensePolicyGate` | **REFACTORED**: Programmatically asserts permissive license compliance and rejects third-party copyleft/BSL crates. |
 | **`forgeyard-logs`** | Custom string replace loop | [`regex`](https://crates.io/crates/regex) (`RegexSet`) | **REFACTORED**: Compiled regex set pattern matching for zero-allocation secret log masking. |
 | **`forgeyard-sandbox`** | Custom raw Linux syscall wrappers & `unshare` logic | [`nix`](https://crates.io/crates/nix) | **REFACTORED**: Safe Rust abstraction for Linux namespace isolation (`CLONE_NEWIPC`, `CLONE_NEWUTS`, `CLONE_NEWNET`). |
 | **`forgeyard-provenance`** | Subprocess invocation of `git` binary (`std::process::Command::new("git")`) | [`gix`](https://crates.io/crates/gix) (gitoxide) | **REFACTORED**: In-process zero-overhead Git repository query engine without external binary subprocesses. |
+| **`forgeyard-packaging`** | Subprocess invocation of `tar` and `zip` executables | [`tar`](https://crates.io/crates/tar), [`flate2`](https://crates.io/crates/flate2), [`zip`](https://crates.io/crates/zip) | **REFACTORED**: Native, in-memory `.tar.gz` and `.zip` package archive generation in pure Rust. |
+| **`forgeyard-test-report`** | Custom string splitting for JUnit XML test parsing | [`quick-xml`](https://crates.io/crates/quick-xml) | **REFACTORED**: Fast XML event stream parsing for JUnit test reports with duration and failure extraction. |
+| **`forgeyard-config`** | Manual single-format RON file parsing | [`ron`](https://crates.io/crates/ron), [`serde_yaml`](https://crates.io/crates/serde_yaml), [`serde_json`](https://crates.io/crates/serde_json), [`config`](https://crates.io/crates/config) | **REFACTORED**: Multi-format configuration loader for `.ron`, `.yaml`, and `.json` pipeline definitions. |
 | **`forgeyard-signing`** | Mock ML-DSA-87 signature formatting | [`ed25519-dalek`](https://crates.io/crates/ed25519-dalek) / [`blake3`](https://crates.io/crates/blake3) | **VERIFIED**: Cryptographic signature validation for SLSA provenance statements. |
-| **`forgeyard-analyzer`** | Mock string output generator for quantized LLMs | [`candle-core`](https://crates.io/crates/candle-core) | Planned integration: Native Rust LLM inference engine by HuggingFace for GGUF model execution. |
-| **`forgeyard-cas`** | Custom in-memory peer tracking struct (`P2pCasSeeder`) | [`libp2p`](https://crates.io/crates/libp2p) | Planned integration: Standard P2P networking supporting Kademlia DHT peer discovery and swarm transfers. |
-| **`forgeyard-scheduler`** | Manual static string metrics estimation for GPUs | [`nvml-wrapper`](https://crates.io/crates/nvml-wrapper) | Planned integration: Real-time NVIDIA GPU VRAM profiling and CUDA core telemetry. |
-| **`forgeyard-deploy`** | Subprocess `ssh`/`scp` shell commands | [`octocrab`](https://crates.io/crates/octocrab) / [`russh`](https://crates.io/crates/russh) | Planned integration: Type-safe GitHub API client and pure-Rust async SSH/SFTP protocol transport. |
-| **`forgeyard-packaging`** | Subprocess invocation of `cargo-deb`/`cargo-wix` | [`msi`](https://crates.io/crates/msi) / [`deb-rs`](https://crates.io/crates/deb-rs) | Planned integration: Direct in-memory native package generation. |
 
 ---
 
 ## 🔍 Detailed Refactoring Summary
 
 ### 1. Secrets Security (`forgeyard-secrets`)
-- **Upgrade**: Replaced manual byte-by-byte XOR loop with **ChaCha20-Poly1305 AEAD authenticated encryption**.
-- **Implementation**: Uses Blake3 derived key and 12-byte nonces. Guarantees message integrity and tamper-proof confidentiality.
+- Replaced manual byte-by-byte XOR loop with **ChaCha20-Poly1305 AEAD authenticated encryption**.
 
 ### 2. DAG Topology & Matrix Engine (`forgeyard-pipeline`)
-- **Upgrade**: Replaced custom DFS topological sort with **`petgraph::graph::DiGraph` and `petgraph::algo::toposort`**.
-- **Upgrade**: Replaced manual matrix nested loops with **`itertools::multi_cartesian_product`**.
-- **Implementation**: Computes exact topological execution waves and combinatorial matrix dimensions with zero edge-case bugs.
+- Replaced custom DFS topological sort with **`petgraph::graph::DiGraph` and `petgraph::algo::toposort`**.
+- Replaced manual matrix nested loops with **`itertools::multi_cartesian_product`**.
 
 ### 3. Cargo Graph Tracker (`forgeyard-adapter-cargo` & `forgeyard-detector`)
-- **Upgrade**: Replaced ad-hoc `CargoToml` parsing with **`guppy::graph::PackageGraph`**.
-- **Implementation**: Provides workspace topological ordering, transitive dependency queries, downstream impact analysis, and framework detection.
+- Replaced ad-hoc `CargoToml` parsing with **`guppy::graph::PackageGraph`**.
 
 ### 4. Policy Gate & Secret Redaction (`forgeyard-policy` & `forgeyard-logs`)
-- **Upgrade**: Integrated **`regex::RegexSet`** for high-throughput pattern matching.
-- **Implementation**: Evaluates security rules and masks secrets in log streams using compiled regex match sets.
+- Integrated **`regex::RegexSet`** for high-throughput pattern matching and secret redaction.
+- Added **`LicensePolicyGate`** enforcing permissive third-party dependency licensing.
 
 ### 5. Linux Namespace Isolation (`forgeyard-sandbox`)
-- **Upgrade**: Integrated **`nix::sched::unshare`**.
-- **Implementation**: Provides safe Rust abstractions for Linux IPC, UTS, PID, and Network namespace unsharing.
+- Integrated **`nix::sched::unshare`** for Linux IPC, UTS, and Network namespace unsharing.
 
 ### 6. In-Process Git Repository Querying (`forgeyard-provenance`)
-- **Upgrade**: Integrated **`gix` (gitoxide)**.
-- **Implementation**: Queries HEAD commit IDs and remote URLs in-process without spawning external `git` shell subprocesses.
+- Integrated **`gix` (gitoxide)** for in-process HEAD commit and remote origin querying.
+
+### 7. Native Archiving & Package Generation (`forgeyard-packaging`)
+- Integrated **`tar`**, **`flate2`**, and **`zip`** for zero-subprocess, in-memory `.tar.gz` and `.zip` generation.
+
+### 8. JUnit XML Report Parser (`forgeyard-test-report`)
+- Integrated **`quick-xml::reader::Reader`** for fast event stream XML parsing.
+
+### 9. Multi-Format Configuration Engine (`forgeyard-config`)
+- Integrated **`ron`**, **`serde_yaml`**, and **`serde_json`** for auto-detecting multi-format configuration loading.
 
 ---
 

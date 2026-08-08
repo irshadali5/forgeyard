@@ -38,8 +38,15 @@ pub struct JobConfig {
 
 impl ForgeyardConfig {
     pub fn load(path: impl AsRef<Path>) -> Result<Self, ConfigError> {
-        let content = std::fs::read_to_string(path).map_err(ConfigError::Io)?;
-        ron::from_str(&content).map_err(ConfigError::Ron)
+        let p = path.as_ref();
+        let content = std::fs::read_to_string(p).map_err(ConfigError::Io)?;
+        let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
+
+        match ext {
+            "yaml" | "yml" => serde_yaml::from_str(&content).map_err(|e| ConfigError::Settings(e.to_string())),
+            "json" => serde_json::from_str(&content).map_err(|e| ConfigError::Settings(e.to_string())),
+            _ => ron::from_str(&content).map_err(ConfigError::Ron),
+        }
     }
 }
 
