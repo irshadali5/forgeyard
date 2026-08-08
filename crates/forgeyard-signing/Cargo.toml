@@ -10,3 +10,4 @@ serde_json = { workspace = true }
 ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
 rand = "0.8.5"
 hex = "0.4.3"
+blake3 = { workspace = true }

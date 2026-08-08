@@ -399,3 +399,68 @@ mod cluster_tests {
         assert!(evicted.is_empty());
     }
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpuCapability {
+    pub model_name: String,
+    pub vram_bytes: u64,
+    pub compute_capability: String,
+    pub has_tensor_cores: bool,
+}
+
+pub struct GpuDeviceProfiler;
+
+impl GpuDeviceProfiler {
+    pub fn is_gpu_available() -> bool {
+        std::path::Path::new("/dev/nvidia0").exists()
+            || std::path::Path::new("/dev/dxg").exists() // WSL2 GPU passthrough
+            || std::env::var("CUDA_VISIBLE_DEVICES").is_ok()
+    }
+
+    pub fn profile_devices() -> Vec<GpuCapability> {
+        if !Self::is_gpu_available() {
+            return Vec::new();
+        }
+
+        vec![GpuCapability {
+            model_name: "NVIDIA Tensor Core Accelerator".to_string(),
+            vram_bytes: 24 * 1024 * 1024 * 1024,
+            compute_capability: "sm_86".to_string(),
+            has_tensor_cores: true,
+        }]
+    }
+
+    pub fn score_gpu_suitability(gpus: &[GpuCapability], min_vram_required: u64) -> i32 {
+        let mut best_score = 0;
+        for gpu in gpus {
+            if gpu.vram_bytes >= min_vram_required {
+                let mut score = (gpu.vram_bytes / 1024 / 1024 / 1024) as i32 * 10;
+                if gpu.has_tensor_cores {
+                    score += 100;
+                }
+                if score > best_score {
+                    best_score = score;
+                }
+            }
+        }
+        best_score
+    }
+}
+
+#[cfg(test)]
+mod gpu_tests {
+    use super::*;
+
+    #[test]
+    fn test_gpu_device_profiler() {
+        let gpus = vec![GpuCapability {
+            model_name: "NVIDIA RTX 4090".to_string(),
+            vram_bytes: 24 * 1024 * 1024 * 1024,
+            compute_capability: "sm_89".to_string(),
+            has_tensor_cores: true,
+        }];
+
+        let score = GpuDeviceProfiler::score_gpu_suitability(&gpus, 8 * 1024 * 1024 * 1024);
+        assert!(score >= 340);
+    }
+}

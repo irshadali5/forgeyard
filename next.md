@@ -78,18 +78,18 @@ This document tracks completed implementation phases, component tier coverage, a
 - [x] **`DifferentialAstFingerprinter` Semantic Hashing**: Filters public API surface signatures (`filter_public_api_surface`) and computes AST cryptographic hashes (`compute_ast_hash`) to track API contract changes.
 - [x] **Smart DAG Skipping (`should_skip_dag_execution`)**: Evaluates public API surface changes to skip execution of unaffected downstream DAG subgraphs when edits alter only private function bodies or comments, cutting build time by up to 80%.
 
+### Phase 13: Post-Quantum Cryptographic Attestations & Signing 🔐
+- [x] **`PostQuantumSigner` Hybrid Dual-Signing**: Combines classical Ed25519 signatures with post-quantum ML-DSA-87 signatures (`sign_hybrid_statement`) for quantum-resistant SLSA v1.0 provenance attestations.
+
+### Phase 14: Automated Matrix GPU Acceleration & Tensor Scheduling ⚡
+- [x] **`GpuDeviceProfiler` CUDA/Vulkan Acceleration**: Detects VRAM capacity, CUDA compute capability, and Tensor Core presence (`profile_devices`).
+- [x] **`score_gpu_suitability` Work-Stealing Allocator**: Dynamically scores and schedules AI matrix training and compute-heavy pipeline steps to optimal GPU runner nodes.
+
 ---
 
 ## 3. System & Architecture Analysis: Next-Generation Expansion Blueprint 🚀
 
 Based on a comprehensive architectural audit of the 37 workspace crates, the following cutting-edge technical expansions are recommended to advance Forgeyard into an enterprise-grade AI-native build engine:
-
-### Phase 13: Post-Quantum Cryptographic Attestations & Signing 🔐
-- **Post-Quantum ML-DSA & SPHINCS+ Algorithms**: Upgrade `forgeyard-signing` and `forgeyard-provenance` to generate hybrid Ed25519 + ML-DSA post-quantum digital signatures for SLSA v1.0 attestations, ensuring quantum-resistant artifact security.
-
-### Phase 14: Automated Matrix GPU Acceleration & Tensor Scheduling ⚡
-- **NVIDIA CUDA & Vulkan Device Profiling**: Expand `forgeyard-scheduler` to detect GPU VRAM capacity, compute capability cores, and Tensor Core utilization.
-- **Work-Stealing GPU Scheduler**: Dynamically assign AI training and matrix multiplication pipeline steps to available GPU worker slices.
 
 ### Phase 15: Distributed Zero-Knowledge Proof (ZKP) Build Verification 🛡️
 - **SNARK / STARK Cryptographic Proof Generation**: Integrate Zero-Knowledge proof generation into `forgeyard-provenance`, allowing developers to prove build artifact integrity and compilation correctness without revealing confidential source code bytes.

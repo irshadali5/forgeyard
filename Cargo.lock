@@ -2610,6 +2610,7 @@ version = "0.1.0"
 dependencies = [
  "forgeyard-model",
  "hex",
+ "serde",
  "thiserror 1.0.69",
  "tracing",
  "uuid",
@@ -2632,6 +2633,7 @@ dependencies = [
 name = "forgeyard-signing"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "ed25519-dalek",
  "forgeyard-model",
  "hex",
