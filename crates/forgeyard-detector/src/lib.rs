@@ -1,29 +1,9 @@
 use async_trait::async_trait;
 use forgeyard_model::{DetectionEvidence, TechnologyKind};
+use guppy::MetadataCommand;
 use ignore::WalkBuilder;
-use serde::Deserialize;
 use std::collections::HashSet;
 use std::path::Path;
-
-#[derive(Deserialize)]
-#[allow(dead_code)]
-struct CargoToml {
-    package: Option<Package>,
-    workspace: Option<Workspace>,
-    dependencies: Option<std::collections::BTreeMap<String, toml::Value>>,
-}
-
-#[derive(Deserialize)]
-#[allow(dead_code)]
-struct Package {
-    name: String,
-}
-
-#[derive(Deserialize)]
-#[allow(dead_code)]
-struct Workspace {
-    members: Option<Vec<String>>,
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum DetectorError {
@@ -41,6 +21,8 @@ pub struct ComprehensiveDetector;
 #[async_trait]
 impl Detector for ComprehensiveDetector {
     async fn detect(&self, workspace_root: &Path) -> Result<Option<DetectionEvidence>, DetectorError> {
+        let root = workspace_root.to_path_buf();
+
         let walker = WalkBuilder::new(workspace_root)
             .hidden(false)
             .ignore(true)
@@ -52,7 +34,7 @@ impl Detector for ComprehensiveDetector {
             files_to_process.push(entry.into_path());
         }
 
-        let (has_rust, has_node, has_docker, has_ios, has_android, frameworks) = tokio::task::spawn_blocking(move || {
+        let (mut has_rust, has_node, has_docker, has_ios, has_android, mut frameworks) = tokio::task::spawn_blocking(move || {
             use rayon::prelude::*;
             
             files_to_process.into_par_iter().fold(
@@ -63,18 +45,6 @@ impl Detector for ComprehensiveDetector {
                         "Cargo.toml" => {
                             acc.0 = true;
                             acc.5.insert("cargo".to_string());
-                            #[allow(clippy::collapsible_if)]
-                            if let Ok(content) = std::fs::read_to_string(&path) {
-                                if let Ok(parsed) = toml::from_str::<CargoToml>(&content) {
-                                    if let Some(deps) = parsed.dependencies {
-                                        if deps.contains_key("dioxus") { acc.5.insert("dioxus".to_string()); }
-                                        if deps.contains_key("axum") { acc.5.insert("axum".to_string()); }
-                                        if deps.contains_key("actix-web") { acc.5.insert("actix-web".to_string()); }
-                                        if deps.contains_key("tokio") { acc.5.insert("tokio".to_string()); }
-                                        if deps.contains_key("tauri") { acc.5.insert("tauri".to_string()); }
-                                    }
-                                }
-                            }
                         }
                         "package.json" => {
                             acc.1 = true;
@@ -119,6 +89,38 @@ impl Detector for ComprehensiveDetector {
                 }
             )
         }).await.map_err(|e| DetectorError::Failed(e.to_string()))?;
+
+        // Use guppy to query the Cargo dependency graph if Rust/Cargo is detected
+        if root.join("Cargo.toml").exists() || has_rust {
+            has_rust = true;
+            frameworks.insert("cargo".to_string());
+
+            if let Ok(graph) = MetadataCommand::new().current_dir(&root).build_graph() {
+                let target_frameworks = [
+                    "dioxus", "axum", "actix-web", "tokio", "tauri", "sqlx", "tonic", "diesel",
+                    "serde", "rayon", "quinn", "reqwest", "yew", "leptos", "warp", "rocket",
+                ];
+                for pkg in graph.packages() {
+                    let name = pkg.name();
+                    if target_frameworks.contains(&name) {
+                        frameworks.insert(name.to_string());
+                    }
+                }
+            } else {
+                // Fallback text check if cargo metadata build is unavailable in environment
+                for entry in WalkBuilder::new(&root).max_depth(Some(2)).build().flatten() {
+                    if entry.file_name() == "Cargo.toml" {
+                        if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                            if content.contains("dioxus") { frameworks.insert("dioxus".to_string()); }
+                            if content.contains("axum") { frameworks.insert("axum".to_string()); }
+                            if content.contains("actix-web") { frameworks.insert("actix-web".to_string()); }
+                            if content.contains("tokio") { frameworks.insert("tokio".to_string()); }
+                            if content.contains("tauri") { frameworks.insert("tauri".to_string()); }
+                        }
+                    }
+                }
+            }
+        }
 
         if !has_rust && !has_node && !has_docker && !has_ios && !has_android {
             return Ok(None);
@@ -186,5 +188,21 @@ impl WorkspaceAnalyzer {
             }
         }
         Ok(evidence)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_guppy_comprehensive_detector() {
+        let detector = ComprehensiveDetector;
+        let result = detector.detect(Path::new(".")).await.unwrap();
+
+        assert!(result.is_some());
+        let evidence = result.unwrap();
+        assert_eq!(evidence.kind, TechnologyKind::Rust);
+        assert!(evidence.frameworks.contains(&"cargo".to_string()));
     }
 }

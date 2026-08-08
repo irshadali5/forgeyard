@@ -117,7 +117,7 @@ Forgeyard enforces strict modular boundary isolation across 37 specialized works
 | `forgeyard-config` | RON & Environment Configuration parser (`ForgeyardConfig`), supporting variable interpolation and pipeline triggers. |
 | `forgeyard-daemon` | Central orchestration engine hosting Axum HTTP REST API, WebSockets, QUIC edge server, eBPF XDP firewall, and scheduler loop. |
 | `forgeyard-deploy` | Multi-cloud deployment publisher (`S3Publisher`, `OciPublisher`, `GitHubReleasePublisher`, `SshPublisher`). |
-| `forgeyard-detector` | High-speed parallel workspace scanner using `Rayon` to auto-detect Rust, Node.js, Go, Gradle, Android, Xcode, and Docker projects. |
+| `forgeyard-detector` | High-speed parallel workspace scanner using `Rayon` and `guppy` to auto-detect Rust/Cargo dependency graphs, Node.js, Go, Gradle, Android, Xcode, and Docker projects. |
 | `forgeyard-device-lab` | Android ADB device pool manager handling test distribution, APK deployments, logcat stream capture, and video recording. |
 | `forgeyard-events` | Central event pub/sub bus backed by `Stoolap` database for real-time state change propagation across nodes. |
 | `forgeyard-executor` | Driver suite (`ProcessExecutor`, `ContainerExecutor`, `AppleExecutor`, `AndroidExecutor`, `WindowsExecutor`) handling child process lifetimes and PTY sessions. |
@@ -137,7 +137,7 @@ Forgeyard enforces strict modular boundary isolation across 37 specialized works
 | `forgeyard-test-report` | Test output parser (`TestReportParser`) and autonomous flaky test root cause synthesizer (`FlakyRootCauseSynthesizer`). |
 | `forgeyard-toolchains` | Hermetic toolchain engine (`ToolchainResolver`) downloading and isolating Rust, Node.js, Go, JDK, and Android NDK runtimes. |
 | `forgeyard-ui` | Dioxus Web and Desktop GUI dashboard rendering real-time execution graphs, agent metrics, and live log viewports. |
-| `forgeyard-adapter-*` | Integration layers for Cargo, Dioxus, WebAssembly, Android, Xcode, and OCI image formats. |
+| `forgeyard-adapter-*` | Integration layers powered by `guppy` (`CargoGraphTracker` for tracking & querying Cargo dependency graphs, transitive queries, reverse impact queries, and framework detection) as well as Dioxus, WebAssembly, Android, Xcode, and OCI image formats. |
 
 ---
 

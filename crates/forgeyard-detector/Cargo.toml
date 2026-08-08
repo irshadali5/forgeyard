@@ -13,3 +13,4 @@ tracing = "0.1"
 rayon = { workspace = true }
 tokio = { workspace = true }
 forgeyard-model = { path = "../forgeyard-model" }
+guppy = { workspace = true }

@@ -77,4 +77,5 @@ quick_cache = "0.7.0"
 redb = "2.2.1"
 io-uring = "0.6"
 tempfile = "3.10"
+guppy = "0.17"
 

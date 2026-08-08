@@ -9,3 +9,6 @@ forgeyard-config = { path = "../forgeyard-config" }
 thiserror = { workspace = true }
 camino = { workspace = true }
 tracing = { workspace = true }
+guppy = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
