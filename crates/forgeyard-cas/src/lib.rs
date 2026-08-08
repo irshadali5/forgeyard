@@ -373,6 +373,37 @@ impl IrohMeshEngine {
     }
 }
 
+pub struct IrohGossipMesh {
+    pub topic: String,
+    pub active_subscriptions: std::sync::RwLock<Vec<String>>,
+}
+
+impl IrohGossipMesh {
+    pub fn new(topic: &str) -> Self {
+        Self {
+            topic: topic.to_string(),
+            active_subscriptions: std::sync::RwLock::new(Vec::new()),
+        }
+    }
+
+    pub fn broadcast_chunk_announcement(&self, ticket_str: &str) -> Result<usize, String> {
+        if let Ok(mut subs) = self.active_subscriptions.write() {
+            subs.push(ticket_str.to_string());
+            Ok(subs.len())
+        } else {
+            Err("Failed to acquire gossip lock".to_string())
+        }
+    }
+}
+
+pub struct IrohNatTunnel;
+
+impl IrohNatTunnel {
+    pub fn resolve_p2p_endpoint(node_id: &str, derp_relay: &str) -> String {
+        format!("derp://{}/node/{}", derp_relay, node_id)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -403,5 +434,15 @@ mod tests {
         let ticket = IrohMeshEngine::parse_iroh_ticket(&ticket_str).unwrap();
         assert_eq!(ticket.node_id, "runner-node-01");
         assert_eq!(ticket.format, "bao-blake3");
+    }
+
+    #[test]
+    fn test_iroh_gossip_and_nat_tunnel() {
+        let gossip = IrohGossipMesh::new("forgeyard-cas-chunks");
+        let count = gossip.broadcast_chunk_announcement("iroh://node-1/hash123").unwrap();
+        assert_eq!(count, 1);
+
+        let endpoint = IrohNatTunnel::resolve_p2p_endpoint("node-1", "derp.iroh.network");
+        assert!(endpoint.contains("derp://derp.iroh.network/node/node-1"));
     }
 }
