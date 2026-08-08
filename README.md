@@ -6,9 +6,9 @@
 
 > [!IMPORTANT]
 >
-> ### 🤖 Ongoing AI-Assisted & Human-Directed Engineering Notice
+> ### 🤖 2–3 Year Pre-v1.0 Continuous Development & Enterprise Hardening Roadmap (2026–2029)
 >
-> **Transparency Statement**: Development of Forgeyard is **ongoing**. Every component, crate dependency, storage model, security constraint, and control flow decision reflects intentional human engineering for maximum performance, memory safety, security, and cross-platform reliability.
+> **Product Lifecycle Statement**: Forgeyard is undergoing a **multi-year (2–3 year) active pre-v1.0 development phase**. We remain under `v0.x` to continuously iterate, battle-test, benchmark, and security-audit all 37 workspace crates across global multi-cloud and bare-metal edge workloads. Official release `v1.0.0` will be declared once long-term production stability, enterprise battle-testing, and strict API stability contracts are proven worldwide.
 
 ---
 

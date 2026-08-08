@@ -2,7 +2,9 @@
 
 This document tracks completed implementation phases, component tier coverage, and technical milestones for **Forgeyard**.
 
----
+> [!IMPORTANT]
+> **2–3 Year Continuous Engineering & Pre-v1.0 Enterprise Hardening Strategy (2026–2029)**
+> Forgeyard is adhering to a **multi-year active pre-v1.0 iteration and testing lifecycle**. We will continuously extend, benchmark, and enterprise-harden all 37 crates across multi-cloud and bare-metal edge environments for 2–3 years before releasing v1.0.0.
 
 ## 1. Complete Component Tier Matrix (All 37 Workspace Crates) ✅
 
