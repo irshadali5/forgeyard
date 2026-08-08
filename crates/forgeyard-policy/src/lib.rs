@@ -359,4 +359,56 @@ mod tests {
         assert_eq!(report.vulnerabilities[0].id, "CVE-2026-9999");
         assert_eq!(report.vulnerabilities[0].severity, SeverityLevel::Critical);
     }
+
+    #[test]
+    fn test_compliance_audit_ledger() {
+        let ledger = ComplianceAuditLedger::new();
+        let report = ledger.generate_compliance_report("run-sec-88", ComplianceStandard::Soc2Type2, 0);
+        assert_eq!(report.standard, ComplianceStandard::Soc2Type2);
+        assert!(report.is_compliant);
+        assert!(report.audit_signature.len() > 10);
+    }
+}
+
+/// Phase 23: Continuous Compliance & SOC2 / ISO 27001 Audit Ledger
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ComplianceStandard {
+    Soc2Type2,
+    Iso27001,
+    Hipaa,
+    SlsaLevel3,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ComplianceReport {
+    pub run_id: String,
+    pub standard: ComplianceStandard,
+    pub is_compliant: bool,
+    pub critical_violations: usize,
+    pub audit_signature: String,
+    pub timestamp_epoch: u64,
+}
+
+#[derive(Default)]
+pub struct ComplianceAuditLedger;
+
+impl ComplianceAuditLedger {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn generate_compliance_report(&self, run_id: &str, standard: ComplianceStandard, critical_violations: usize) -> ComplianceReport {
+        let is_compliant = critical_violations == 0;
+        let payload = format!("compliance-{}-{:?}-{}", run_id, standard, is_compliant);
+        let audit_signature = blake3::hash(payload.as_bytes()).to_hex().to_string();
+
+        ComplianceReport {
+            run_id: run_id.to_string(),
+            standard,
+            is_compliant,
+            critical_violations,
+            audit_signature,
+            timestamp_epoch: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+        }
+    }
 }

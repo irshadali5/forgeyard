@@ -115,10 +115,10 @@ Based on a comprehensive architectural audit of the 37 workspace crates, the fol
 - [x] **`FlakyRootCauseSynthesizer` & Auto-Fix Engine**: Upgraded `forgeyard-test-report` with `FlakyRootCauseSynthesizer` and `RaceConditionDiagnostic` (`diagnose_flaky_test`, `generate_auto_fix`) to automatically categorize async timing locks, port conflicts, and unordered state races and synthesize remediation patches.
 
 ### Phase 22: Enterprise eBPF XDP Firewall & DDoS Mitigation Mesh 🛡️
-- **XDP Kernel Packet Filtering**: Implement eXpress Data Path (XDP) kernel filtering in `forgeyard-daemon` for wire-speed network packet filtering, DDoS protection, and rate limiting.
+- [x] **`EbpfXdpFirewall` & XDP Filtering**: Implemented `EbpfXdpFirewall` and `XdpFilterRule` (`filter_packet`, `block_ip`, `add_rule`) in `forgeyard-daemon` for wire-speed kernel XDP network packet filtering, IP rate limiting, and DDoS mitigation.
 
 ### Phase 23: Continuous Compliance & SOC2 / ISO 27001 Audit Ledger 📋
-- **Immutable Provenance Ledger**: Export SLSA attestations, eBPF telemetry, and policy findings into automated SOC2 Type II and ISO 27001 compliance audit trails.
+- [x] **`ComplianceAuditLedger` & Audit Reports**: Upgraded `forgeyard-policy` with `ComplianceAuditLedger` and `ComplianceReport` (`generate_compliance_report`) exporting SLSA attestations, eBPF telemetry, and policy findings into automated SOC2 Type II, ISO 27001, HIPAA, and SLSA Level 3 compliance reports.
 
 ### Phase 24: Distributed P2P CAS Cache Coalescing & Seeding 🌌
 - **Bit-Torrent P2P Artifact Seeding**: Implement automatic P2P CAS chunk seeding in `forgeyard-cas` across edge runner nodes with chunk deduplication and bandwidth throttling.

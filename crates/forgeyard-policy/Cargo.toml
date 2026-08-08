@@ -7,3 +7,4 @@ edition = "2024"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 io-uring = { workspace = true }
+blake3 = { workspace = true }
