@@ -3,3 +3,7 @@
 *.redb
 .idea/
 .vscode/
+sample-repo/
+test-repos/
+.forgeyard_cas/
+.artifacts/
