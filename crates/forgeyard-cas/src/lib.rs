@@ -4,7 +4,7 @@ use bytes::Bytes;
 use forgeyard_model::Digest;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
@@ -303,6 +303,76 @@ impl IoUringCasEngine {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IrohBlobTicket {
+    pub node_id: String,
+    pub blake3_hash: String,
+    pub format: String,
+}
+
+pub struct IrohMeshEngine {
+    node_id: String,
+    cas: Arc<CasEngine>,
+    known_peers: std::sync::RwLock<HashMap<String, String>>,
+}
+
+impl IrohMeshEngine {
+    pub fn new(node_id: &str, cas: Arc<CasEngine>) -> Self {
+        Self {
+            node_id: node_id.to_string(),
+            cas,
+            known_peers: std::sync::RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub fn generate_iroh_ticket(&self, digest: &Digest) -> String {
+        let hash_hex = hex::encode(digest.bytes);
+        format!("iroh://{}/{}", self.node_id, hash_hex)
+    }
+
+    pub fn parse_iroh_ticket(ticket_str: &str) -> Result<IrohBlobTicket, String> {
+        if !ticket_str.starts_with("iroh://") {
+            return Err("Invalid ticket prefix, must start with iroh://".to_string());
+        }
+
+        let body = &ticket_str[7..];
+        let parts: Vec<&str> = body.split('/').collect();
+        if parts.len() < 2 {
+            return Err("Invalid ticket format, expected iroh://<node_id>/<hash>".to_string());
+        }
+
+        Ok(IrohBlobTicket {
+            node_id: parts[0].to_string(),
+            blake3_hash: parts[1].to_string(),
+            format: "bao-blake3".to_string(),
+        })
+    }
+
+    pub fn register_peer(&self, node_id: &str, quic_addr: &str) {
+        if let Ok(mut lock) = self.known_peers.write() {
+            lock.insert(node_id.to_string(), quic_addr.to_string());
+        }
+    }
+
+    pub async fn resolve_remote_blob(&self, ticket_str: &str) -> Result<Option<Bytes>, CasError> {
+        let ticket = Self::parse_iroh_ticket(ticket_str)
+            .map_err(|e| CasError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+
+        let mut hash_bytes = [0u8; 32];
+        hex::decode_to_slice(&ticket.blake3_hash, &mut hash_bytes)
+            .map_err(|_| CasError::DigestMismatch)?;
+
+        let digest = Digest { bytes: hash_bytes };
+        
+        // If blob is already local, return immediately
+        if let Ok(Some(bytes)) = self.cas.read_blob(&digest).await {
+            return Ok(Some(bytes));
+        }
+
+        Ok(None)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -318,5 +388,20 @@ mod tests {
         let content = uring_cas.read_blob_uring(&digest).await.unwrap();
 
         assert_eq!(content, Some(Bytes::from_static(b"io_uring test content")));
+    }
+
+    #[tokio::test]
+    async fn test_iroh_mesh_engine_tickets() {
+        let dir = tempdir().unwrap();
+        let cas = Arc::new(CasEngine::new(dir.path()).await.unwrap());
+        let mesh = IrohMeshEngine::new("runner-node-01", cas.clone());
+
+        let digest = cas.write_blob(b"iroh p2p payload").await.unwrap();
+        let ticket_str = mesh.generate_iroh_ticket(&digest);
+        assert!(ticket_str.starts_with("iroh://runner-node-01/"));
+
+        let ticket = IrohMeshEngine::parse_iroh_ticket(&ticket_str).unwrap();
+        assert_eq!(ticket.node_id, "runner-node-01");
+        assert_eq!(ticket.format, "bao-blake3");
     }
 }
