@@ -8,3 +8,7 @@ async-trait = { workspace = true }
 thiserror = { workspace = true }
 quick_cache = { workspace = true }
 redb = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["full"] }

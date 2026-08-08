@@ -464,3 +464,60 @@ mod gpu_tests {
         assert!(score >= 340);
     }
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RegionClusterHealth {
+    pub region_name: String,
+    pub cloud_provider: String,
+    pub latency_ms: u32,
+    pub is_degraded: bool,
+}
+
+pub struct MultiRegionClusterFailover;
+
+impl MultiRegionClusterFailover {
+    pub fn select_optimal_region(regions: &[RegionClusterHealth]) -> Option<String> {
+        let mut healthy_regions: Vec<&RegionClusterHealth> = regions.iter()
+            .filter(|r| !r.is_degraded)
+            .collect();
+
+        if healthy_regions.is_empty() {
+            return None;
+        }
+
+        healthy_regions.sort_by_key(|r| r.latency_ms);
+        Some(healthy_regions[0].region_name.clone())
+    }
+}
+
+#[cfg(test)]
+mod multi_region_tests {
+    use super::*;
+
+    #[test]
+    fn test_multi_region_cluster_failover() {
+        let regions = vec![
+            RegionClusterHealth {
+                region_name: "us-east-1".to_string(),
+                cloud_provider: "aws".to_string(),
+                latency_ms: 120,
+                is_degraded: true, // Degraded region
+            },
+            RegionClusterHealth {
+                region_name: "eu-central-1".to_string(),
+                cloud_provider: "gcp".to_string(),
+                latency_ms: 15,
+                is_degraded: false,
+            },
+            RegionClusterHealth {
+                region_name: "on-prem-datacenter".to_string(),
+                cloud_provider: "bare-metal".to_string(),
+                latency_ms: 5,
+                is_degraded: false,
+            },
+        ];
+
+        let selected = MultiRegionClusterFailover::select_optimal_region(&regions);
+        assert_eq!(selected, Some("on-prem-datacenter".to_string()));
+    }
+}

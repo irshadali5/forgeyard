@@ -341,3 +341,55 @@ mod tests {
         let _under_pressure = OomPressureListener::is_system_under_oom_pressure();
     }
 }
+
+pub struct TeleportShellSession {
+    pub session_id: String,
+    pub job_id: String,
+    pub pty_token: String,
+}
+
+pub struct TeleportShellServer;
+
+impl TeleportShellServer {
+    pub fn create_pty_session(job_id: &str) -> TeleportShellSession {
+        let session_id = format!("teleport-{}", uuid::Uuid::new_v4());
+        let pty_token = format!("token-{}", uuid::Uuid::new_v4());
+
+        TeleportShellSession {
+            session_id,
+            job_id: job_id.to_string(),
+            pty_token,
+        }
+    }
+
+    pub fn execute_shell_command(session: &TeleportShellSession, command: &str) -> Result<String, String> {
+        if command.trim().is_empty() {
+            return Ok("".to_string());
+        }
+
+        let output = std::process::Command::new("bash")
+            .arg("-c")
+            .arg(command)
+            .output()
+            .map_err(|e| format!("Failed to execute teleport command: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Ok(format!("{}{}", stdout, stderr))
+    }
+}
+
+#[cfg(test)]
+mod teleport_tests {
+    use super::*;
+
+    #[test]
+    fn test_teleport_shell_session_creation() {
+        let session = TeleportShellServer::create_pty_session("job-debug-99");
+        assert!(session.session_id.starts_with("teleport-"));
+        assert_eq!(session.job_id, "job-debug-99");
+
+        let res = TeleportShellServer::execute_shell_command(&session, "echo 'teleport active'").unwrap();
+        assert!(res.contains("teleport active"));
+    }
+}

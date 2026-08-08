@@ -12,3 +12,4 @@ camino = { workspace = true }
 tracing.workspace = true
 async-trait = { workspace = true }
 forgeyard-archive = { version = "0.1.0", path = "../forgeyard-archive" }
+uuid = { workspace = true, features = ["v4"] }

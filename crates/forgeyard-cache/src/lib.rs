@@ -159,3 +159,50 @@ impl Cache for TieredCache {
         Ok(None)
     }
 }
+
+pub struct PredictiveCacheWarmup;
+
+impl PredictiveCacheWarmup {
+    pub fn predict_warmup_keys(changed_files: &[&str], dag_task_names: &[&str]) -> Vec<CacheKey> {
+        let mut keys = Vec::new();
+        for task in dag_task_names {
+            for file in changed_files {
+                let raw_key = format!("predict-{}-{}", task, file.replace('/', "_"));
+                keys.push(CacheKey(raw_key));
+            }
+        }
+        keys
+    }
+
+    pub async fn prewarm_cache(cache: &TieredCache, keys: &[CacheKey], dummy_payload: &[u8]) -> usize {
+        let mut count = 0;
+        for key in keys {
+            if cache.put(key, dummy_payload).await.is_ok() {
+                count += 1;
+            }
+        }
+        count
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_predictive_cache_warmup() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let tiered = TieredCache::new(100, temp_dir.path()).unwrap();
+
+        let changed_files = vec!["src/main.rs", "Cargo.toml"];
+        let task_names = vec!["build", "test"];
+        let keys = PredictiveCacheWarmup::predict_warmup_keys(&changed_files, &task_names);
+
+        assert_eq!(keys.len(), 4);
+        let warmed = PredictiveCacheWarmup::prewarm_cache(&tiered, &keys, b"prewarmed_data").await;
+        assert_eq!(warmed, 4);
+
+        let hit = tiered.get(&keys[0]).await.unwrap();
+        assert_eq!(hit, Some(b"prewarmed_data".to_vec()));
+    }
+}
