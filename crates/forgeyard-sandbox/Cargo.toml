@@ -15,3 +15,4 @@ forgeyard-archive = { version = "0.1.0", path = "../forgeyard-archive" }
 uuid = { workspace = true, features = ["v4"] }
 serde = { workspace = true, features = ["derive"] }
 blake3 = { workspace = true }
+nix = { workspace = true }

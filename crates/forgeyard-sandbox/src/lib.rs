@@ -17,8 +17,17 @@ fn check_bwrap_available() -> bool {
         .unwrap_or(false)
 }
 
-/// A Linux Sandbox Executor utilizing `bwrap` (Bubblewrap).
-/// Provides unprivileged namespace isolation for build jobs.
+#[cfg(target_os = "linux")]
+pub fn unshare_linux_namespaces(unshare_net: bool) -> Result<(), nix::Error> {
+    use nix::sched::{unshare, CloneFlags};
+    let mut flags = CloneFlags::CLONE_NEWIPC | CloneFlags::CLONE_NEWUTS;
+    if unshare_net {
+        flags |= CloneFlags::CLONE_NEWNET;
+    }
+    unshare(flags)
+}
+
+/// A Linux Sandbox Executor utilizing `bwrap` (Bubblewrap) or `nix` namespace isolation.
 #[derive(Default)]
 pub struct SandboxExecutor;
 

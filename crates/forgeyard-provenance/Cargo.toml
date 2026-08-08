@@ -8,3 +8,4 @@ forgeyard-model = { path = "../forgeyard-model" }
 serde_json = "1.0"
 blake3 = { workspace = true }
 hex = "0.4.3"
+gix = { workspace = true }

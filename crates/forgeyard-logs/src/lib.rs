@@ -17,23 +17,47 @@ pub trait LogWriter: Send + Sync {
 pub struct RedactingLogWriter<W: LogWriter> {
     inner: W,
     secret_patterns: Vec<String>,
+    regex_set: Option<regex::RegexSet>,
 }
 
 impl<W: LogWriter> RedactingLogWriter<W> {
     pub fn new(inner: W, secrets: Vec<String>) -> Self {
+        let regex_patterns: Vec<String> = secrets
+            .iter()
+            .filter(|s| !s.is_empty())
+            .map(|s| regex::escape(s))
+            .collect();
+
+        let regex_set = regex::RegexSet::new(&regex_patterns).ok();
+
         Self {
             inner,
             secret_patterns: secrets,
+            regex_set,
         }
     }
 
     fn redact(&self, line: &str) -> String {
         let mut redacted = line.to_string();
-        for secret in &self.secret_patterns {
-            if !secret.is_empty() {
-                redacted = redacted.replace(secret, "[REDACTED_SECRET]");
+
+        if let Some(set) = &self.regex_set {
+            let matches = set.matches(line);
+            if matches.matched_any() {
+                for idx in matches.iter() {
+                    let secret = &self.secret_patterns[idx];
+                    if !secret.is_empty() {
+                        redacted = redacted.replace(secret, "[REDACTED_SECRET]");
+                    }
+                }
+            }
+        } else {
+            for secret in &self.secret_patterns {
+                if !secret.is_empty() {
+                    redacted = redacted.replace(secret, "[REDACTED_SECRET]");
+                }
             }
         }
+
         redacted
     }
 }

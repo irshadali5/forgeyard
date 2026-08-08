@@ -16,3 +16,5 @@ serde_yaml = "0.9.34"
 tracing.workspace = true
 uuid = { workspace = true, features = ["v4"] }
 sha2 = "0.11.0"
+petgraph = { workspace = true }
+itertools = { workspace = true }

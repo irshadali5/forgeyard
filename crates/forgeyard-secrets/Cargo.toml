@@ -11,3 +11,4 @@ blake3 = { workspace = true }
 tokio = { workspace = true }
 forgeyard-model = { path = "../forgeyard-model" }
 io-uring = { workspace = true }
+chacha20poly1305 = { workspace = true }

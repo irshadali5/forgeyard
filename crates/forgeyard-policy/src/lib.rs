@@ -60,17 +60,38 @@ impl Policy for SecurityPolicy {
             });
         }
 
-        // Rule 2: Forbidden command inspection
+        // Rule 2: Forbidden command inspection using regex::RegexSet
         let full_command = input.command.join(" ");
         let mut command_safe = true;
-        for pattern in &self.forbidden_patterns {
-            if full_command.contains(pattern) {
+
+        let regex_patterns: Vec<String> = self
+            .forbidden_patterns
+            .iter()
+            .map(|p| regex::escape(p))
+            .collect();
+
+        if let Ok(set) = regex::RegexSet::new(&regex_patterns) {
+            let matches = set.matches(&full_command);
+            if matches.matched_any() {
                 command_safe = false;
-                findings.push(PolicyFinding {
-                    rule: "disallowed_command".to_string(),
-                    status: PolicyFindingStatus::Fail,
-                    message: format!("Disallowed command pattern detected: {}", pattern),
-                });
+                for idx in matches.iter() {
+                    findings.push(PolicyFinding {
+                        rule: "disallowed_command".to_string(),
+                        status: PolicyFindingStatus::Fail,
+                        message: format!("Disallowed command pattern detected: {}", self.forbidden_patterns[idx]),
+                    });
+                }
+            }
+        } else {
+            for pattern in &self.forbidden_patterns {
+                if full_command.contains(pattern) {
+                    command_safe = false;
+                    findings.push(PolicyFinding {
+                        rule: "disallowed_command".to_string(),
+                        status: PolicyFindingStatus::Fail,
+                        message: format!("Disallowed command pattern detected: {}", pattern),
+                    });
+                }
             }
         }
 
@@ -82,8 +103,22 @@ impl Policy for SecurityPolicy {
             });
         }
 
-        // Rule 3: Secret exposure inspection
-        if full_command.contains("printenv") || full_command.contains("env ") || full_command.contains("echo $") {
+        // Rule 3: Secret exposure inspection using RegexSet
+        if let Ok(secret_guard_set) = regex::RegexSet::new(&[r"\bprintenv\b", r"\benv\b", r"\becho\s+\$"]) {
+            if secret_guard_set.is_match(&full_command) {
+                findings.push(PolicyFinding {
+                    rule: "secret_exposure_guard".to_string(),
+                    status: PolicyFindingStatus::Warning,
+                    message: "Potential environment variable or secret printing detected in command string".to_string(),
+                });
+            } else {
+                findings.push(PolicyFinding {
+                    rule: "secret_exposure_guard".to_string(),
+                    status: PolicyFindingStatus::Pass,
+                    message: "No suspicious environment print statements detected".to_string(),
+                });
+            }
+        } else if full_command.contains("printenv") || full_command.contains("env ") || full_command.contains("echo $") {
             findings.push(PolicyFinding {
                 rule: "secret_exposure_guard".to_string(),
                 status: PolicyFindingStatus::Warning,

@@ -1,3 +1,5 @@
+use petgraph::algo::toposort;
+use petgraph::graph::{DiGraph, NodeIndex};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, thiserror::Error)]
@@ -9,8 +11,9 @@ pub enum DagError {
 }
 
 pub struct PipelineDag {
-    edges: HashMap<String, Vec<String>>,
-    nodes: HashSet<String>,
+    graph: DiGraph<String, ()>,
+    node_map: HashMap<String, NodeIndex>,
+    edges_raw: Vec<(String, String)>,
 }
 
 impl Default for PipelineDag {
@@ -22,74 +25,60 @@ impl Default for PipelineDag {
 impl PipelineDag {
     pub fn new() -> Self {
         Self {
-            edges: HashMap::new(),
-            nodes: HashSet::new(),
+            graph: DiGraph::new(),
+            node_map: HashMap::new(),
+            edges_raw: Vec::new(),
         }
     }
 
     pub fn add_node(&mut self, job: String) {
-        self.nodes.insert(job.clone());
-        self.edges.entry(job).or_default();
+        if !self.node_map.contains_key(&job) {
+            let idx = self.graph.add_node(job.clone());
+            self.node_map.insert(job, idx);
+        }
     }
 
     pub fn add_edge(&mut self, from: String, to: String) {
-        self.nodes.insert(from.clone());
-        self.nodes.insert(to.clone());
-        self.edges.entry(from).or_default().push(to);
+        self.add_node(from.clone());
+        self.add_node(to.clone());
+        self.edges_raw.push((from, to));
     }
 
-    /// Performs a topological sort and returns the execution order, validating cycles and missing deps.
+    /// Performs a topological sort using `petgraph` and returns execution order, validating cycles and missing deps.
     pub fn validate(&self, known_jobs: &HashSet<String>) -> Result<Vec<String>, DagError> {
-        let mut in_degree = HashMap::new();
-        for node in &self.nodes {
+        let mut graph = DiGraph::<String, ()>::new();
+        let mut node_map = HashMap::new();
+
+        for node in self.node_map.keys() {
             if !known_jobs.contains(node) {
-                // Determine who depends on this missing node for error context
-                let dependent = self.edges.iter()
-                    .find(|(_, targets)| targets.contains(node))
+                let dependent = self
+                    .edges_raw
+                    .iter()
+                    .find(|(_, target)| target == node)
                     .map(|(src, _)| src.clone())
                     .unwrap_or_else(|| "unknown".to_string());
                 return Err(DagError::MissingDependency(dependent, node.clone()));
             }
-            in_degree.insert(node.clone(), 0);
+            let idx = graph.add_node(node.clone());
+            node_map.insert(node.clone(), idx);
         }
 
-        for targets in self.edges.values() {
-            for target in targets {
-                *in_degree.entry(target.clone()).or_insert(0) += 1;
+        for (from, to) in &self.edges_raw {
+            if let (Some(&from_idx), Some(&to_idx)) = (node_map.get(from), node_map.get(to)) {
+                graph.add_edge(from_idx, to_idx, ());
             }
         }
 
-        let mut queue = Vec::new();
-        for (node, &degree) in &in_degree {
-            if degree == 0 {
-                queue.push(node.clone());
+        match toposort(&graph, None) {
+            Ok(order) => {
+                let sorted = order.into_iter().map(|idx| graph[idx].clone()).collect();
+                Ok(sorted)
+            }
+            Err(cycle) => {
+                let cycle_node = graph[cycle.node_id()].clone();
+                Err(DagError::CycleDetected(cycle_node))
             }
         }
-
-        let mut sorted = Vec::new();
-        while let Some(node) = queue.pop() {
-            sorted.push(node.clone());
-            if let Some(targets) = self.edges.get(&node) {
-                for target in targets {
-                    let degree = in_degree.get_mut(target).unwrap();
-                    *degree -= 1;
-                    if *degree == 0 {
-                        queue.push(target.clone());
-                    }
-                }
-            }
-        }
-
-        if sorted.len() != self.nodes.len() {
-            // Find a node that has non-zero in-degree
-            let cycle_node = in_degree.into_iter()
-                .find(|(_, degree)| *degree > 0)
-                .map(|(node, _)| node)
-                .unwrap_or_else(|| "unknown".to_string());
-            return Err(DagError::CycleDetected(cycle_node));
-        }
-
-        Ok(sorted)
     }
 }
 
@@ -124,6 +113,11 @@ mod tests {
         known.insert("A".to_string());
         known.insert("B".to_string());
 
-        assert!(dag.validate(&known).is_err());
+        let result = dag.validate(&known);
+        assert!(result.is_err());
+        match result {
+            Err(DagError::CycleDetected(_)) => {}
+            _ => panic!("Expected CycleDetected error"),
+        }
     }
 }

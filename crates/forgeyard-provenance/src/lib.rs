@@ -27,25 +27,28 @@ impl ProvenanceGenerator for BasicProvenanceGenerator {
         let mut commit_hash = None;
         let mut source_repo = "local_workspace".to_string();
 
-        let output = std::process::Command::new("git")
-            .current_dir(&self.workspace_root)
-            .args(["rev-parse", "HEAD"])
-            .output();
+        if let Ok(repo) = gix::discover(&self.workspace_root) {
+            if let Ok(head) = repo.head_id() {
+                commit_hash = Some(head.to_hex().to_string());
+            }
 
-        if let Ok(out) = output {
-            if out.status.success() {
-                commit_hash = Some(String::from_utf8_lossy(&out.stdout).trim().to_string());
+            if let Some(Ok(remote)) = repo.find_default_remote(gix::remote::Direction::Fetch) {
+                if let Some(url) = remote.url(gix::remote::Direction::Fetch) {
+                    source_repo = url.to_bstring().to_string();
+                }
             }
         }
 
-        let origin_output = std::process::Command::new("git")
-            .current_dir(&self.workspace_root)
-            .args(["config", "--get", "remote.origin.url"])
-            .output();
+        if commit_hash.is_none() {
+            let output = std::process::Command::new("git")
+                .current_dir(&self.workspace_root)
+                .args(["rev-parse", "HEAD"])
+                .output();
 
-        if let Ok(out) = origin_output {
-            if out.status.success() {
-                source_repo = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if let Ok(out) = output {
+                if out.status.success() {
+                    commit_hash = Some(String::from_utf8_lossy(&out.stdout).trim().to_string());
+                }
             }
         }
 
