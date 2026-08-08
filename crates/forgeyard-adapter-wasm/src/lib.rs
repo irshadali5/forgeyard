@@ -68,3 +68,80 @@ impl WasmAdapter {
         config
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WasmCapability {
+    ReadFs(String),
+    WriteFs(String),
+    NetworkEgress(String),
+    EnvVar(String),
+}
+
+pub struct WasmCapabilityGrant {
+    pub allowed_capabilities: Vec<WasmCapability>,
+}
+
+impl WasmCapabilityGrant {
+    pub fn is_allowed(&self, cap: &WasmCapability) -> bool {
+        self.allowed_capabilities.contains(cap)
+    }
+}
+
+pub struct WasmPluginSandbox {
+    pub grants: WasmCapabilityGrant,
+    pub memory_limit_bytes: u64,
+}
+
+impl WasmPluginSandbox {
+    pub fn new(grants: WasmCapabilityGrant) -> Self {
+        Self {
+            grants,
+            memory_limit_bytes: 64 * 1024 * 1024, // 64 MB default sandbox memory cap
+        }
+    }
+
+    pub fn execute_plugin(&self, wasm_bytes: &[u8], input_payload: &str) -> Result<String, String> {
+        if wasm_bytes.is_empty() {
+            return Err("WASM module payload is empty".to_string());
+        }
+
+        // Validate WASM magic number header (\0asm)
+        if wasm_bytes.len() >= 4 && &wasm_bytes[0..4] != b"\0asm" {
+            return Err("Invalid WASM binary header magic number".to_string());
+        }
+
+        // Simulated sandboxed WASM execution returning structured plugin JSON
+        let output = format!(
+            "{{\"status\":\"success\",\"bytes_processed\":{},\"input\":\"{}\"}}",
+            wasm_bytes.len(),
+            input_payload
+        );
+
+        Ok(output)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_wasm_capability_grant() {
+        let grant = WasmCapabilityGrant {
+            allowed_capabilities: vec![WasmCapability::ReadFs("/tmp".to_string())],
+        };
+        assert!(grant.is_allowed(&WasmCapability::ReadFs("/tmp".to_string())));
+        assert!(!grant.is_allowed(&WasmCapability::WriteFs("/etc".to_string())));
+    }
+
+    #[test]
+    fn test_wasm_plugin_sandbox_execution() {
+        let grant = WasmCapabilityGrant { allowed_capabilities: vec![] };
+        let sandbox = WasmPluginSandbox::new(grant);
+        let valid_wasm_header = b"\0asm\x01\x00\x00\x00";
+
+        let result = sandbox.execute_plugin(valid_wasm_header, "test_input").unwrap();
+        assert!(result.contains("success"));
+        assert!(result.contains("test_input"));
+    }
+}

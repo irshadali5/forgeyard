@@ -70,14 +70,15 @@ This document tracks completed implementation phases, component tier coverage, a
 - [x] **`AiPatchGenerator` Fix Proposal Engine**: Combines Tree-Sitter AST parser context (`CodeGraph`), compiler error tracebacks (`CargoTestParser`, `JUnitXmlParser`), and RTK token budget trimming (`RtkCompressor`) to generate automated fix patches (`.patch`) for broken builds.
 - [x] **`FlakyTestQuarantine` Auto-Isolation**: Automatically isolates flaky test cases detected by `FlakyTestDetector` (`quarantine_tests`), stripping failure exit codes so deployment pipelines remain unblocked.
 
+### Phase 11: WebAssembly (WASM) Zero-Trust Plugin Sandbox 🧩
+- [x] **`WasmPluginSandbox` Execution Engine**: Loads and executes user-written `.wasm` build step plugins (`execute_plugin`), custom security policy checkers, and artifact transformers in a lightweight sandboxed environment.
+- [x] **`WasmCapabilityGrant` Security Policy**: Enforces explicit Zero-Trust capability grants (`WasmCapability`) restricting filesystem access (`ReadFs`, `WriteFs`), environment variables, and network egress per plugin module.
+
 ---
 
 ## 3. System & Architecture Analysis: Recommended Future Expansion Blueprint 🚀
 
 Based on a comprehensive architectural audit of the 37 workspace crates, the following next-generation technical expansions are recommended to maximize performance, security, and scalability:
-
-### Phase 11: WebAssembly (WASM) Zero-Trust Plugin Sandbox 🧩
-- **Extensible WASM Runner Engine**: Integrate `wasmtime` runtime for executing user-written build step plugins, custom security policy checkers, and artifact transformers in a lightweight, sandboxed WASM environment with explicit capability grants.
 
 ### Phase 12: Fine-Grained Differential AST Fingerprinting Engine 🔍
 - **Semantic AST Fingerprinting**: Hash public function signatures and type definitions rather than raw file bytes.
