@@ -1,12 +1,12 @@
-# 🚀 Forgeyard Release v1.0.0
+# 🚀 Forgeyard Release v0.9.0-dev (Pre-v1.0 Preview)
 
 > **High-Performance, Cloud-Native Distributed Build, CI/CD Orchestration, and Codebase Intelligence Engine**
 
 ---
 
-## 🌟 Release v1.0.0 Highlights
+## 🌟 Release v0.9.0-dev Highlights
 
-Forgeyard v1.0.0 is the official initial major production release of the Forgeyard engine, featuring **24 master architectural implementation phases** built entirely in Rust across 37 modular workspace crates.
+Forgeyard v0.9.0-dev is a pre-v1.0 active development release featuring **24 master architectural implementation phases** built entirely in Rust across 37 modular workspace crates. We remain under v1.0 to iterate rapidly and battle-test features before v1.0 enterprise readiness.
 
 ---
 
