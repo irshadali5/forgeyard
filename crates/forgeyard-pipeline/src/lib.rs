@@ -166,6 +166,13 @@ impl PipelineCompiler {
 pub struct DifferentialAstFingerprinter;
 
 impl DifferentialAstFingerprinter {
+    pub fn filter_public_api_surface(symbols: &[forgeyard_model::SymbolInfo]) -> Vec<String> {
+        symbols.iter()
+            .filter(|s| s.is_public)
+            .map(|s| s.signature.clone().unwrap_or_else(|| s.label.clone()))
+            .collect()
+    }
+
     pub fn compute_ast_hash(ast_signatures: &[String]) -> String {
         use sha2::{Sha256, Digest};
         let mut hasher = Sha256::new();
@@ -179,11 +186,16 @@ impl DifferentialAstFingerprinter {
     pub fn should_skip_job(prev_ast_hash: &str, current_ast_hash: &str) -> bool {
         !prev_ast_hash.is_empty() && prev_ast_hash == current_ast_hash
     }
+
+    pub fn should_skip_dag_execution(prev_public_hash: &str, current_public_hash: &str) -> bool {
+        !prev_public_hash.is_empty() && prev_public_hash == current_public_hash
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use forgeyard_model::{SymbolInfo, SymbolKind};
 
     #[test]
     fn test_differential_ast_fingerprinter() {
@@ -200,5 +212,36 @@ mod tests {
 
         assert!(DifferentialAstFingerprinter::should_skip_job(&h1, &h2));
         assert!(!DifferentialAstFingerprinter::should_skip_job(&h1, &h3));
+    }
+
+    #[test]
+    fn test_public_api_surface_filtering() {
+        let symbols = vec![
+            SymbolInfo {
+                symbol_id: "1".into(),
+                label: "pub fn public_api()".into(),
+                kind: SymbolKind::Function,
+                file_path: "src/lib.rs".into(),
+                line: 1,
+                signature: Some("pub fn public_api()".into()),
+                is_public: true,
+            },
+            SymbolInfo {
+                symbol_id: "2".into(),
+                label: "fn internal_helper()".into(),
+                kind: SymbolKind::Function,
+                file_path: "src/lib.rs".into(),
+                line: 10,
+                signature: Some("fn internal_helper()".into()),
+                is_public: false,
+            },
+        ];
+
+        let public_sigs = DifferentialAstFingerprinter::filter_public_api_surface(&symbols);
+        assert_eq!(public_sigs.len(), 1);
+        assert_eq!(public_sigs[0], "pub fn public_api()");
+
+        let h_public = DifferentialAstFingerprinter::compute_ast_hash(&public_sigs);
+        assert!(DifferentialAstFingerprinter::should_skip_dag_execution(&h_public, &h_public));
     }
 }
