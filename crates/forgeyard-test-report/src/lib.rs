@@ -167,6 +167,22 @@ impl FlakyTestDetector {
     }
 }
 
+pub struct FlakyTestQuarantine;
+
+impl FlakyTestQuarantine {
+    pub fn quarantine_tests(flaky_tests: &[String], report: &mut TestReport) -> usize {
+        let mut quarantined_count = 0;
+        for result in &mut report.results {
+            if flaky_tests.contains(&result.name) && !result.passed {
+                result.passed = true; // Quarantine failure so pipeline deployment isn't blocked
+                result.error_message = Some(format!("[QUARANTINED FLAKY TEST] {}", result.error_message.as_deref().unwrap_or("Failure ignored")));
+                quarantined_count += 1;
+            }
+        }
+        quarantined_count
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -205,6 +221,20 @@ mod tests {
 
         let flaky = FlakyTestDetector::analyze_history(&[report1, report2]);
         assert_eq!(flaky, vec!["test_flaky"]);
+    }
+
+    #[test]
+    fn test_flaky_test_quarantine() {
+        let mut report = TestReport {
+            suite_name: "Run 3".to_string(),
+            results: vec![
+                TestResult { name: "test_flaky".to_string(), passed: false, duration_ms: 15, error_message: Some("flake".to_string()) },
+            ],
+        };
+        let count = FlakyTestQuarantine::quarantine_tests(&["test_flaky".to_string()], &mut report);
+        assert_eq!(count, 1);
+        assert!(report.results[0].passed);
+        assert!(report.results[0].error_message.as_ref().unwrap().contains("[QUARANTINED FLAKY TEST]"));
     }
 
     #[test]

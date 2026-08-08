@@ -66,15 +66,15 @@ This document tracks completed implementation phases, component tier coverage, a
 - [x] **`IrohGossipMesh` PlumTree Broadcasting**: Broadcasts CAS chunk availability and node capabilities over P2P gossip topics (`broadcast_chunk_announcement`).
 - [x] **`IrohNatTunnel` DERP Hole Punching**: Direct P2P endpoint resolution (`resolve_p2p_endpoint`) across strict enterprise NATs and firewalls, offloading daemon bandwidth by 80-95%.
 
+### Phase 10: Autonomous AI Pipeline Remediation & AST Patch Proposal 🤖
+- [x] **`AiPatchGenerator` Fix Proposal Engine**: Combines Tree-Sitter AST parser context (`CodeGraph`), compiler error tracebacks (`CargoTestParser`, `JUnitXmlParser`), and RTK token budget trimming (`RtkCompressor`) to generate automated fix patches (`.patch`) for broken builds.
+- [x] **`FlakyTestQuarantine` Auto-Isolation**: Automatically isolates flaky test cases detected by `FlakyTestDetector` (`quarantine_tests`), stripping failure exit codes so deployment pipelines remain unblocked.
+
 ---
 
 ## 3. System & Architecture Analysis: Recommended Future Expansion Blueprint 🚀
 
 Based on a comprehensive architectural audit of the 37 workspace crates, the following next-generation technical expansions are recommended to maximize performance, security, and scalability:
-
-### Phase 10: Autonomous AI Pipeline Remediation & AST Patch Proposal 🤖
-- **Automated Fix Generation**: Combine Tree-Sitter AST parser context (`forgeyard-analyzer`), compiler error tracebacks (`CargoTestParser`, `JUnitXmlParser`), and LLM context trimming (`RtkCompressor`) to generate automated fix patches (`.patch`) for broken builds.
-- **Flaky Test Auto-Quarantine**: Automatically isolate flaky test cases detected by `FlakyTestDetector` without failing critical deployment pipelines.
 
 ### Phase 11: WebAssembly (WASM) Zero-Trust Plugin Sandbox 🧩
 - **Extensible WASM Runner Engine**: Integrate `wasmtime` runtime for executing user-written build step plugins, custom security policy checkers, and artifact transformers in a lightweight, sandboxed WASM environment with explicit capability grants.

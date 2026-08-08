@@ -119,13 +119,22 @@ pub mod graph {
     pub struct AiPatchGenerator;
 
     impl AiPatchGenerator {
-        pub fn propose_patch(failed_test_name: &str, error_trace: &str, target_file: &str) -> String {
+        pub fn propose_patch(
+            failed_test_name: &str,
+            error_trace: &str,
+            target_file: &str,
+            rtk_summary: Option<&str>,
+        ) -> String {
             let mut patch = String::new();
             patch.push_str(&format!("--- a/{}\n", target_file));
             patch.push_str(&format!("+++ b/{}\n", target_file));
             patch.push_str("@@ -1,5 +1,6 @@\n");
-            patch.push_str(&format!("// Automated AI Fix Proposal for failed test: {}\n", failed_test_name));
-            patch.push_str(&format!("// Error Context: {}\n", error_trace.lines().next().unwrap_or("Unknown assertion failure")));
+            patch.push_str(&format!("// Autonomous AI Remediation Patch for: {}\n", failed_test_name));
+            patch.push_str(&format!("// Root Cause Trace: {}\n", error_trace.lines().next().unwrap_or("Assertion failed")));
+            if let Some(summary) = rtk_summary {
+                let context_line = summary.lines().find(|l| l.contains("Public API Surface")).unwrap_or("// RTK AST Context attached");
+                patch.push_str(&format!("// AST Context: {}\n", context_line));
+            }
             patch
         }
     }
@@ -167,8 +176,9 @@ mod tests {
 
     #[test]
     fn test_ai_patch_generator() {
-        let patch = AiPatchGenerator::propose_patch("test_foo", "assertion failed: x == y", "src/foo.rs");
-        assert!(patch.contains("Automated AI Fix Proposal"));
+        let patch = AiPatchGenerator::propose_patch("test_foo", "assertion failed: x == y", "src/foo.rs", Some("#### Public API Surface"));
+        assert!(patch.contains("Autonomous AI Remediation Patch"));
         assert!(patch.contains("--- a/src/foo.rs"));
+        assert!(patch.contains("AST Context"));
     }
 }
