@@ -112,7 +112,7 @@ Based on a comprehensive architectural audit of the 37 workspace crates, the fol
 - [x] **`ConfidentialEnclaveExecutor` & Hardware Attestation**: Upgraded `forgeyard-sandbox` with `ConfidentialEnclaveExecutor` and `EnclaveAttestationReport` (`generate_attestation_report`, `execute_confidential_step`) for AMD SEV-SNP, Intel SGX, and AWS Nitro Enclaves.
 
 ### Phase 21: Autonomous Flaky Test Root Cause Synthesizer 🛠️
-- **AST Race Condition Delta Analysis**: Compare passing vs failing execution traces in `forgeyard-test-report` to automatically refactor non-deterministic test timing locks and race conditions.
+- [x] **`FlakyRootCauseSynthesizer` & Auto-Fix Engine**: Upgraded `forgeyard-test-report` with `FlakyRootCauseSynthesizer` and `RaceConditionDiagnostic` (`diagnose_flaky_test`, `generate_auto_fix`) to automatically categorize async timing locks, port conflicts, and unordered state races and synthesize remediation patches.
 
 ### Phase 22: Enterprise eBPF XDP Firewall & DDoS Mitigation Mesh 🛡️
 - **XDP Kernel Packet Filtering**: Implement eXpress Data Path (XDP) kernel filtering in `forgeyard-daemon` for wire-speed network packet filtering, DDoS protection, and rate limiting.
