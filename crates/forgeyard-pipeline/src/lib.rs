@@ -162,3 +162,43 @@ impl PipelineCompiler {
         hash.iter().map(|b| format!("{:02x}", b)).collect()
     }
 }
+
+pub struct DifferentialAstFingerprinter;
+
+impl DifferentialAstFingerprinter {
+    pub fn compute_ast_hash(ast_signatures: &[String]) -> String {
+        use sha2::{Sha256, Digest};
+        let mut hasher = Sha256::new();
+        for sig in ast_signatures {
+            hasher.update(sig.as_bytes());
+        }
+        let hash = hasher.finalize();
+        hash.iter().map(|b| format!("{:02x}", b)).collect()
+    }
+
+    pub fn should_skip_job(prev_ast_hash: &str, current_ast_hash: &str) -> bool {
+        !prev_ast_hash.is_empty() && prev_ast_hash == current_ast_hash
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_differential_ast_fingerprinter() {
+        let sigs1 = vec!["pub fn foo()".to_string(), "pub struct Bar".to_string()];
+        let sigs2 = vec!["pub fn foo()".to_string(), "pub struct Bar".to_string()];
+        let sigs3 = vec!["pub fn foo_modified()".to_string(), "pub struct Bar".to_string()];
+
+        let h1 = DifferentialAstFingerprinter::compute_ast_hash(&sigs1);
+        let h2 = DifferentialAstFingerprinter::compute_ast_hash(&sigs2);
+        let h3 = DifferentialAstFingerprinter::compute_ast_hash(&sigs3);
+
+        assert_eq!(h1, h2);
+        assert_ne!(h1, h3);
+
+        assert!(DifferentialAstFingerprinter::should_skip_job(&h1, &h2));
+        assert!(!DifferentialAstFingerprinter::should_skip_job(&h1, &h3));
+    }
+}

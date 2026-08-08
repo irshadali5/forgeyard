@@ -231,3 +231,55 @@ impl Executor for SandboxExecutor {
         }
     }
 }
+
+pub struct CgroupGovernor {
+    pub cgroup_path: std::path::PathBuf,
+    pub max_memory_bytes: Option<u64>,
+    pub max_cpu_quota_us: Option<u64>,
+}
+
+impl CgroupGovernor {
+    pub fn new(job_id: &str) -> Self {
+        Self {
+            cgroup_path: std::path::PathBuf::from("/sys/fs/cgroup/forgeyard").join(job_id),
+            max_memory_bytes: None,
+            max_cpu_quota_us: None,
+        }
+    }
+
+    pub fn is_cgroup_v2_available() -> bool {
+        std::path::Path::new("/sys/fs/cgroup/cgroup.controllers").exists()
+    }
+
+    pub fn apply_limits(&self) -> Result<(), String> {
+        if !Self::is_cgroup_v2_available() {
+            return Ok(());
+        }
+
+        let _ = std::fs::create_dir_all(&self.cgroup_path);
+
+        if let Some(mem_max) = self.max_memory_bytes {
+            let path = self.cgroup_path.join("memory.max");
+            let _ = std::fs::write(path, mem_max.to_string());
+        }
+
+        if let Some(cpu_quota) = self.max_cpu_quota_us {
+            let path = self.cgroup_path.join("cpu.max");
+            let _ = std::fs::write(path, format!("{} 100000", cpu_quota));
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cgroup_governor_init() {
+        let governor = CgroupGovernor::new("job-test-1");
+        assert!(governor.cgroup_path.to_str().unwrap().contains("job-test-1"));
+        let _ = governor.apply_limits();
+    }
+}

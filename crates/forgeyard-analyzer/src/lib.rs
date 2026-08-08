@@ -115,6 +115,20 @@ pub mod graph {
         let compressor = RtkCompressor::new(4000);
         compressor.compress(&code_graph)
     }
+
+    pub struct AiPatchGenerator;
+
+    impl AiPatchGenerator {
+        pub fn propose_patch(failed_test_name: &str, error_trace: &str, target_file: &str) -> String {
+            let mut patch = String::new();
+            patch.push_str(&format!("--- a/{}\n", target_file));
+            patch.push_str(&format!("+++ b/{}\n", target_file));
+            patch.push_str("@@ -1,5 +1,6 @@\n");
+            patch.push_str(&format!("// Automated AI Fix Proposal for failed test: {}\n", failed_test_name));
+            patch.push_str(&format!("// Error Context: {}\n", error_trace.lines().next().unwrap_or("Unknown assertion failure")));
+            patch
+        }
+    }
 }
 
 #[cfg(test)]
@@ -149,5 +163,12 @@ mod tests {
 
         assert!(summary.contains("RTK-Compressed Codebase Knowledge Graph"));
         assert!(summary.contains("RTK Truncated"));
+    }
+
+    #[test]
+    fn test_ai_patch_generator() {
+        let patch = AiPatchGenerator::propose_patch("test_foo", "assertion failed: x == y", "src/foo.rs");
+        assert!(patch.contains("Automated AI Fix Proposal"));
+        assert!(patch.contains("--- a/src/foo.rs"));
     }
 }
