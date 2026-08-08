@@ -1,26 +1,43 @@
-# 📜 Forgeyard License & Crate Compliance Audit (`crate.md`)
+# 📜 Forgeyard License & Dependency Compliance Policy (`crate.md`)
 
-## ⚖️ Project License Architecture
+## ⚖️ Dual-Licensing Architecture & Copyright Ownership
 
-Forgeyard is dual-licensed under:
-1. **AGPL-3.0-or-later**: GNU Affero General Public License v3.0 (Open-Source Edition)
-2. **Commercial License**: Enterprise Proprietary License for proprietary cloud deployments & OEM redistribution without AGPL copyleft obligations.
+Forgeyard uses a **Dual-Licensing Model**:
+1. **Open-Source Edition**: Licensed under **GNU AGPLv3** (`AGPL-3.0-or-later`).
+2. **Commercial Edition**: Proprietary Commercial License for enterprise customers requiring closed-source deployment, OEM embedding, or SaaS redistribution without AGPL copyleft obligations.
 
----
-
-## 🚫 License Restriction & Enforcement Policy
-
-To safeguard the commercial and open-source dual-license model of Forgeyard:
-- ❌ **Forbidden Licenses**: Copyleft **GPL-2.0**, **GPL-3.0**, **LGPL-3.0** (unless dual-licensed under permissive MIT/Apache-2.0), and restrictive **Business Source Licenses** (**BSL 1.1**, **BUSL**, **SSPL**).
-- ✅ **Permitted Licenses**: **AGPL-3.0-or-later**, **Apache-2.0**, **MIT**, **BSD-2-Clause**, **BSD-3-Clause**, **ISC**, **CC0-1.0**, **Unlicense**, and **Boost Software License 1.0 (BSL-1.0)**.
+> [!IMPORTANT]
+> **Why Third-Party AGPL / GPL Dependencies are Strictly Forbidden**:
+> Copyright ownership of Forgeyard code belongs to the project maintainers, enabling dual-licensing under both AGPLv3 and Commercial terms. However, if Forgeyard incorporates **third-party** AGPL or GPL dependencies, those external authors' copyleft terms would infect the codebase, making it legally impossible to grant closed-source Commercial licenses to enterprise buyers.
 
 ---
 
-## 📦 Workspace Crates License Inventory
+## 🚫 Third-Party Dependency License Rules
 
-All **37 workspace crates** in the Forgeyard monorepo are governed strictly under the **AGPL-3.0-or-later OR Commercial** dual license:
+To guarantee that commercial customers receive un-contaminated proprietary rights, all **third-party external crates** in `Cargo.toml` / `Cargo.lock` are governed by strict license gates:
 
-| Crate Name | Version | License | Status |
+### ❌ Forbidden Third-Party Licenses
+- **AGPL-1.0 / AGPL-3.0** (Prevents commercial proprietary re-licensing)
+- **GPL-1.0 / GPL-2.0 / GPL-3.0** (Strong copyleft contamination)
+- **LGPL-2.1 / LGPL-3.0** (Unless dual-licensed under MIT/Apache-2.0)
+- **BSL 1.1 / BUSL / SSPL** (Restrictive Business Source Licenses)
+
+### ✅ Allowed Third-Party Dependency Licenses
+Only permissive open-source licenses (or dual-licensed crates with a permissive option) are permitted for external crates:
+- **Apache-2.0**
+- **MIT**
+- **BSD-2-Clause / BSD-3-Clause**
+- **ISC**
+- **CC0-1.0 / Unlicense**
+- **Boost Software License 1.0 (BSL-1.0)** (Permissive Boost C++ license)
+
+---
+
+## 📦 Workspace Crates License Table (First-Party)
+
+All **37 first-party workspace crates** in Forgeyard are copyright-owned and dual-licensed under `AGPL-3.0-or-later OR Commercial`:
+
+| Crate Name | Version | First-Party License | Status |
 | :--- | :--- | :--- | :---: |
 | `forgeyard-model` | 0.1.0 | `AGPL-3.0-or-later OR Commercial` | ✅ Compliant |
 | `forgeyard-config` | 0.1.0 | `AGPL-3.0-or-later OR Commercial` | ✅ Compliant |
@@ -62,21 +79,11 @@ All **37 workspace crates** in the Forgeyard monorepo are governed strictly unde
 
 ---
 
-## 🛡️ Dependency License Audit & Compatibility Matrix
+## 🔍 Third-Party Dependency Audit Verification
 
-All direct and transitive open-source dependencies have been audited via `cargo metadata`. Zero forbidden GPL/BSL crates exist in the dependency tree.
+Automated inspection via `cargo metadata` verifies:
+- **0 Third-Party AGPL / GPL Crates**
+- **0 Restrictive BSL 1.1 / BUSL / SSPL Crates**
+- **100% Permissive Dependency Tree** (`Apache-2.0`, `MIT`, `BSD`, `ISC`, `CC0-1.0`)
 
-| Category / Subsystem | Primary External Crates | License(s) | Compliance Verification |
-| :--- | :--- | :--- | :---: |
-| **Cryptography & AEAD** | `chacha20poly1305`, `blake3`, `ed25519-dalek`, `sha2`, `hex` | `MIT OR Apache-2.0`, `CC0-1.0` | ✅ Permissive |
-| **Graph & Dependency Engine** | `guppy`, `petgraph`, `itertools` | `MIT OR Apache-2.0` | ✅ Permissive |
-| **Git Repository Inspection** | `gix` (gitoxide) | `MIT OR Apache-2.0` | ✅ Permissive |
-| **System & Isolation** | `nix`, `io-uring`, `tempfile` | `MIT OR Apache-2.0` | ✅ Permissive |
-| **Parsing & Utilities** | `quick-xml`, `regex`, `serde`, `serde_json`, `thiserror`, `tokio` | `MIT OR Apache-2.0` | ✅ Permissive |
-| **Archive Builders** | `tar`, `flate2`, `zip` | `MIT OR Apache-2.0` | ✅ Permissive |
-
----
-
-## 🔒 Automated License Gate Assertion
-
-The Forgeyard policy gate validates that no non-compliant GPL or Business Source Licensed code enters the build pipeline. All crates comply 100% with the AGPLv3 / Commercial dual-license structure.
+Commercial customers purchasing an enterprise license receive a clean, un-contaminated proprietary distribution.
