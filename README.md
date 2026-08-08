@@ -110,6 +110,8 @@ forgeyard/
 
 ## ⚡ Quickstart
 
+> 📖 **Comprehensive Step-by-Step Guide**: See [`tutorial.md`](file:///home/irshad/Projects/forgeyard/tutorial.md) for full local testing instructions, daemon setup, edge worker management, log tailing, and `io_uring` verification.
+
 ### Prerequisites
 
 - **Rust Toolchain**: `rustc` 1.85+ and `cargo`
