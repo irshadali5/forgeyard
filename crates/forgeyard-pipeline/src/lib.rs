@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 pub mod dag;
 pub mod matrix;
 
@@ -36,7 +37,7 @@ impl PipelineCompiler {
         let mut known_jobs = HashSet::new();
 
         // Register nodes
-        for (job_name, _job_cfg) in &pipeline_cfg.jobs {
+        for job_name in pipeline_cfg.jobs.keys() {
             dag.add_node(job_name.clone());
             known_jobs.insert(job_name.clone());
         }

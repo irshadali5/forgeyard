@@ -22,6 +22,7 @@ pub struct BasicProvenanceGenerator {
 }
 
 impl ProvenanceGenerator for BasicProvenanceGenerator {
+    #[allow(clippy::collapsible_if)]
     fn generate(&self, artifact_id: &str) -> ProvenanceRecord {
         let mut commit_hash = None;
         let mut source_repo = "local_workspace".to_string();

@@ -1,3 +1,4 @@
+#![allow(clippy::collapsible_if)]
 use async_trait::async_trait;
 
 #[derive(Debug, Clone)]
@@ -21,6 +22,12 @@ pub trait DeviceLab: Send + Sync {
 
 pub struct LocalAndroidDeviceLab {
     pub locked_devices: tokio::sync::Mutex<std::collections::HashSet<String>>,
+}
+
+impl Default for LocalAndroidDeviceLab {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl LocalAndroidDeviceLab {

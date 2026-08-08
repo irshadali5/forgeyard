@@ -48,10 +48,8 @@ impl Detector for ComprehensiveDetector {
             .build();
 
         let mut files_to_process = Vec::new();
-        for result in walker {
-            if let Ok(entry) = result {
-                files_to_process.push(entry.into_path());
-            }
+        for entry in walker.flatten() {
+            files_to_process.push(entry.into_path());
         }
 
         let (has_rust, has_node, has_docker, has_ios, has_android, frameworks) = tokio::task::spawn_blocking(move || {
@@ -65,6 +63,7 @@ impl Detector for ComprehensiveDetector {
                         "Cargo.toml" => {
                             acc.0 = true;
                             acc.5.insert("cargo".to_string());
+                            #[allow(clippy::collapsible_if)]
                             if let Ok(content) = std::fs::read_to_string(&path) {
                                 if let Ok(parsed) = toml::from_str::<CargoToml>(&content) {
                                     if let Some(deps) = parsed.dependencies {
@@ -164,6 +163,12 @@ impl Detector for ComprehensiveDetector {
 
 pub struct WorkspaceAnalyzer {
     detectors: Vec<Box<dyn Detector>>,
+}
+
+impl Default for WorkspaceAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl WorkspaceAnalyzer {

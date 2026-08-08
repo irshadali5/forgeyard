@@ -1,6 +1,7 @@
+#![allow(clippy::collapsible_if)]
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::io::{BufRead, Write};
 
 pub trait LogReader: Send + Sync {
@@ -114,7 +115,7 @@ impl LogReader for RotatingFileLogSystem {
         let path = self.log_dir.join(format!("{}.log", job_id));
         if let Ok(file) = std::fs::File::open(path) {
             let reader = std::io::BufReader::new(file);
-            reader.lines().filter_map(Result::ok).collect()
+            reader.lines().map_while(Result::ok).collect()
         } else {
             Vec::new()
         }
@@ -210,7 +211,7 @@ mod tests {
         redacting.write_log("job-1", "Build started with super_secret_token!").unwrap();
         redacting.write_log("job-1", "Step 1 complete").unwrap();
 
-        let reader = RingBufferLogWriter::new(3);
+        let _reader = RingBufferLogWriter::new(3);
         // Direct test on redact
         let clean = redacting.redact("my super_secret_token value");
         assert_eq!(clean, "my [REDACTED_SECRET] value");

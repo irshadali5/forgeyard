@@ -52,22 +52,20 @@ impl EventJournal for StoolapEventJournal {
 
         let mut events = Vec::new();
         let mut skip = since_id.is_some();
-        for e in iter {
-            if let Ok(row) = e {
-                let id = row.get::<String>(0).map_err(|e| e.to_string())?;
-                let timestamp_ms = row.get::<i64>(1).map_err(|e| e.to_string())? as u64;
-                let payload_hex = row.get::<String>(2).map_err(|e| e.to_string())?;
-                let payload = hex::decode(payload_hex).map_err(|e| e.to_string())?;
-                let event = JournalEvent { id, timestamp_ms, payload };
+        for row in iter.flatten() {
+            let id = row.get::<String>(0).map_err(|e| e.to_string())?;
+            let timestamp_ms = row.get::<i64>(1).map_err(|e| e.to_string())? as u64;
+            let payload_hex = row.get::<String>(2).map_err(|e| e.to_string())?;
+            let payload = hex::decode(payload_hex).map_err(|e| e.to_string())?;
+            let event = JournalEvent { id, timestamp_ms, payload };
 
-                if skip {
-                    if Some(&event.id) == since_id.as_ref() {
-                        skip = false;
-                    }
-                    continue;
+            if skip {
+                if Some(&event.id) == since_id.as_ref() {
+                    skip = false;
                 }
-                events.push(event);
+                continue;
             }
+            events.push(event);
         }
         Ok(events)
     }

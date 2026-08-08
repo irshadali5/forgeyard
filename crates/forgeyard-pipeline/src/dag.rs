@@ -13,6 +13,12 @@ pub struct PipelineDag {
     nodes: HashSet<String>,
 }
 
+impl Default for PipelineDag {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PipelineDag {
     pub fn new() -> Self {
         Self {
@@ -23,13 +29,13 @@ impl PipelineDag {
 
     pub fn add_node(&mut self, job: String) {
         self.nodes.insert(job.clone());
-        self.edges.entry(job).or_insert_with(Vec::new);
+        self.edges.entry(job).or_default();
     }
 
     pub fn add_edge(&mut self, from: String, to: String) {
         self.nodes.insert(from.clone());
         self.nodes.insert(to.clone());
-        self.edges.entry(from).or_insert_with(Vec::new).push(to);
+        self.edges.entry(from).or_default().push(to);
     }
 
     /// Performs a topological sort and returns the execution order, validating cycles and missing deps.

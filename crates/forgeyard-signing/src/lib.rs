@@ -26,14 +26,15 @@ impl LocalEd25519Signer {
         self.signing_key.verifying_key()
     }
 
+    #[allow(clippy::collapsible_if)]
     pub fn verify_statement_signature(
         verifying_key: &VerifyingKey,
         statement: &InTotoStatement,
         signature_hex: &str,
     ) -> bool {
         let payload = serde_json::to_string(statement).unwrap_or_default();
-        if let Ok(sig_bytes) = hex::decode(signature_hex) {
-            if let Ok(sig) = ed25519_dalek::Signature::from_slice(&sig_bytes) {
+        if let Ok(bytes) = hex::decode(signature_hex) {
+            if let Ok(sig) = ed25519_dalek::Signature::from_slice(&bytes) {
                 return verifying_key.verify(payload.as_bytes(), &sig).is_ok();
             }
         }
@@ -156,7 +157,6 @@ impl PostQuantumSigner {
 #[cfg(test)]
 mod pq_tests {
     use super::*;
-    use std::collections::BTreeMap;
     use forgeyard_model::*;
 
     #[test]

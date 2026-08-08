@@ -43,7 +43,7 @@ pub struct JobResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DaemonMessage {
-    LeaseResponse(JobLeaseResponse),
+    LeaseResponse(Box<JobLeaseResponse>),
     AcknowledgeHeartbeat,
     AcknowledgeResult,
     AcknowledgeLogBatch,

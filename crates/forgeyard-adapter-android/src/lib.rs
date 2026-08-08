@@ -1,4 +1,4 @@
-use forgeyard_config::{ForgeyardConfig, JobConfig, PipelineConfig};
+use forgeyard_config::{JobConfig, PipelineConfig};
 use std::collections::BTreeMap;
 use std::path::Path;
 

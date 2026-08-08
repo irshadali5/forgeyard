@@ -158,7 +158,7 @@ impl Executor for SandboxExecutor {
             ))
         })?;
 
-        let job_id = job.id.clone();
+        let job_id = job.id;
         let log_tx_out = log_tx.clone();
         let job_name_out = job.name.clone();
 
@@ -176,7 +176,7 @@ impl Executor for SandboxExecutor {
 
                     let _ = tx.send(LogEvent {
                         run_id: None,
-                        job_id: job_id.clone(),
+                        job_id,
                         sequence: seq,
                         stream: LogStream::Stdout,
                         timestamp,
@@ -187,7 +187,7 @@ impl Executor for SandboxExecutor {
             }
         });
 
-        let job_id_err = job.id.clone();
+        let job_id_err = job.id;
         let log_tx_err = log_tx;
         let job_name_err = job.name.clone();
 
@@ -205,7 +205,7 @@ impl Executor for SandboxExecutor {
 
                     let _ = tx.send(LogEvent {
                         run_id: None,
-                        job_id: job_id_err.clone(),
+                        job_id: job_id_err,
                         sequence: seq,
                         stream: LogStream::Stderr,
                         timestamp,

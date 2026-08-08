@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 use camino::Utf8PathBuf;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

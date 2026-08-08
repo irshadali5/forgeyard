@@ -55,9 +55,9 @@ pub fn create_zip(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), Ar
     let src_path = src.as_ref();
     if src_path.is_dir() {
         for entry in walkdir::WalkDir::new(src_path) {
-            let entry = entry.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            let entry = entry.map_err(std::io::Error::other)?;
             let path = entry.path();
-            let name = path.strip_prefix(src_path).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            let name = path.strip_prefix(src_path).map_err(std::io::Error::other)?;
 
             if path.is_file() {
                 zip.start_file(name.to_string_lossy(), options)?;
@@ -68,7 +68,7 @@ pub fn create_zip(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), Ar
             }
         }
     } else {
-        let file_name = src_path.file_name().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "Invalid file name"))?;
+        let file_name = src_path.file_name().ok_or_else(|| std::io::Error::other("Invalid file name"))?;
         zip.start_file(file_name.to_string_lossy(), options)?;
         let mut f = File::open(src_path)?;
         std::io::copy(&mut f, &mut zip)?;

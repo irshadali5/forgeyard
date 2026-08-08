@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+#![allow(clippy::collapsible_match)]
 use forgeyard_model::{JobIr, RunnerId, JobState};
 use forgeyard_model::scheduler::{Capability, CapabilityExpression, RunnerDescriptor};
 use std::collections::{BTreeMap, VecDeque};
@@ -111,7 +113,7 @@ impl LocalScheduler {
         }
 
         // 2. Cache locality score
-        for (_input_name, digest) in &job.inputs {
+        for digest in job.inputs.values() {
             let hex_digest = hex::encode(digest.bytes);
             if runner.cached_fingerprints.contains(&hex_digest) {
                 score += 40;

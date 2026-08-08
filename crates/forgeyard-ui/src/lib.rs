@@ -1,3 +1,4 @@
+#![allow(clippy::collapsible_if)]
 use dioxus::prelude::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 

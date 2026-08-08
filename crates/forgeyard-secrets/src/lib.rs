@@ -30,14 +30,10 @@ pub struct DotEnvBackend;
 #[async_trait]
 impl SecretBackend for DotEnvBackend {
     async fn get(&self, reference: &SecretReference) -> Result<String, SecretError> {
-        if let Ok(path) = dotenvy::dotenv() {
-            if let Ok(iter) = dotenvy::from_path_iter(path) {
-                for item in iter {
-                    if let Ok((k, v)) = item {
-                        if k == reference.name {
-                            return Ok(v);
-                        }
-                    }
+        if let Ok(iter) = dotenvy::dotenv().and_then(dotenvy::from_path_iter) {
+            for (k, v) in iter.flatten() {
+                if k == reference.name {
+                    return Ok(v);
                 }
             }
         }
@@ -75,18 +71,16 @@ impl EncryptedVaultBackend {
 
         #[cfg(target_os = "linux")]
         {
-            if let Ok(mut ring) = io_uring::IoUring::new(8) {
-                if let Ok(file) = std::fs::OpenOptions::new().create(true).write(true).truncate(true).open(path) {
-                    use std::os::unix::io::AsRawFd;
-                    let fd = io_uring::types::Fd(file.as_raw_fd());
-                    let mut data = payload.into_bytes();
-                    let write_e = io_uring::opcode::Write::new(fd, data.as_mut_ptr(), data.len() as u32).build();
-                    unsafe {
-                        let _ = ring.submission().push(&write_e);
-                    }
-                    let _ = ring.submit_and_wait(1);
-                    return Ok(());
+            if let (Ok(mut ring), Ok(file)) = (io_uring::IoUring::new(8), std::fs::OpenOptions::new().create(true).write(true).truncate(true).open(path)) {
+                use std::os::unix::io::AsRawFd;
+                let fd = io_uring::types::Fd(file.as_raw_fd());
+                let mut data = payload.into_bytes();
+                let write_e = io_uring::opcode::Write::new(fd, data.as_mut_ptr(), data.len() as u32).build();
+                unsafe {
+                    let _ = ring.submission().push(&write_e);
                 }
+                let _ = ring.submit_and_wait(1);
+                return Ok(());
             }
         }
 

@@ -1,3 +1,4 @@
+#![allow(clippy::collapsible_match)]
 use anyhow::Result;
 use clap::Parser;
 use forgeyard_protocol::{
@@ -61,7 +62,7 @@ async fn discover_daemon() -> Result<SocketAddr> {
         if let Ok(event) = receiver.recv_async().await {
             if let ServiceEvent::ServiceResolved(info) = event {
                 info!("Discovered daemon: {}", info.get_fullname());
-                for addr in info.get_addresses() {
+                if let Some(addr) = info.get_addresses().iter().next() {
                     let ip: std::net::IpAddr = addr.to_string().parse().unwrap_or_else(|_| "127.0.0.1".parse().unwrap());
                     return Ok(SocketAddr::new(ip, info.get_port()));
                 }
@@ -328,7 +329,7 @@ async fn main() -> Result<()> {
                                             let _ = uni_stream.write_all(hash_str.as_bytes()).await;
                                             let mut file = tokio::fs::File::open(path).await.unwrap();
                                             let _ = tokio::io::copy(&mut file, &mut uni_stream).await;
-                                            let _ = uni_stream.finish();
+                                            std::mem::drop(uni_stream.finish());
                                         }
                                         
                                         info!("Pushed artifact {} to daemon CAS", path);

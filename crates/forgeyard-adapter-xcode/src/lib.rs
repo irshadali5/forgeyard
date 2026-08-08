@@ -1,4 +1,5 @@
-use forgeyard_config::{ForgeyardConfig, JobConfig, PipelineConfig};
+#![allow(clippy::collapsible_if)]
+use forgeyard_config::{JobConfig, PipelineConfig};
 use std::collections::BTreeMap;
 use std::path::Path;
 

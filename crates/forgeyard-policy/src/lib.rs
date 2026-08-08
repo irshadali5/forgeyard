@@ -1,3 +1,4 @@
+#![allow(clippy::collapsible_if)]
 pub struct PolicyInput {
     pub job_id: String,
     pub repository: String,

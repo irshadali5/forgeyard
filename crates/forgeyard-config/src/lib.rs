@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 use forgeyard_model::Trigger;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

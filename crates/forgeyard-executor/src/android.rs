@@ -58,7 +58,7 @@ impl AndroidExecutor {
         info!("Killing emulator on port {}", self.emulator_port);
         let target = format!("emulator-{}", self.emulator_port);
         let _ = Command::new(adb_path)
-            .args(&["-s", &target, "emu", "kill"])
+            .args(["-s", &target, "emu", "kill"])
             .output()
             .await;
         
@@ -76,9 +76,10 @@ impl AndroidExecutor {
         
         info!("Booting AVD: {} on port {}", self.avd_name, self.emulator_port);
         let mut cmd = Command::new(emulator_path);
-        cmd.args(&["-avd", &self.avd_name]);
-        cmd.args(&["-port", &self.emulator_port.to_string()]);
-        cmd.args(&["-no-snapshot", "-no-boot-anim", "-no-audio"]);
+        let port_str = self.emulator_port.to_string();
+        cmd.args(["-avd", &self.avd_name]);
+        cmd.args(["-port", &port_str]);
+        cmd.args(["-no-snapshot", "-no-boot-anim", "-no-audio"]);
         
         if self.headless {
             cmd.arg("-no-window");
@@ -99,7 +100,7 @@ impl AndroidExecutor {
         let max_retries = 60; // 2 minutes max
         for i in 0..max_retries {
             let output = Command::new(adb_path)
-                .args(&["-s", &target, "shell", "getprop", "sys.boot_completed"])
+                .args(["-s", &target, "shell", "getprop", "sys.boot_completed"])
                 .output()
                 .await;
             
@@ -108,7 +109,7 @@ impl AndroidExecutor {
                 if stdout.trim() == "1" {
                     info!("Device booted successfully after {} seconds", i * 2);
                     // unlock screen just in case
-                    let _ = Command::new(adb_path).args(&["-s", &target, "shell", "input", "keyevent", "82"]).output().await;
+                    let _ = Command::new(adb_path).args(["-s", &target, "shell", "input", "keyevent", "82"]).output().await;
                     return Ok(());
                 }
             }
@@ -124,7 +125,7 @@ impl AndroidExecutor {
         info!("Installing APK: {} to {}", apk_path, target);
         
         let output = Command::new(adb_path)
-            .args(&["-s", &target, "install", "-r", "-t", apk_path])
+            .args(["-s", &target, "install", "-r", "-t", apk_path])
             .output()
             .await
             .map_err(ExecutorError::ExecutionFailed)?;
@@ -134,7 +135,7 @@ impl AndroidExecutor {
         } else {
             let err = String::from_utf8_lossy(&output.stderr);
             error!("APK Install failed: {}", err);
-            Err(ExecutorError::ExecutionFailed(std::io::Error::new(std::io::ErrorKind::Other, "APK Install failed")))
+            Err(ExecutorError::ExecutionFailed(std::io::Error::other("APK Install failed")))
         }
     }
 
@@ -142,9 +143,10 @@ impl AndroidExecutor {
     async fn run_monkey(&self, adb_path: &Path, package: &str, events: u32) -> Result<(), ExecutorError> {
         let target = format!("emulator-{}", self.emulator_port);
         info!("Running UI Monkey on {} for {} events", package, events);
+        let events_str = events.to_string();
         
         let output = Command::new(adb_path)
-            .args(&["-s", &target, "shell", "monkey", "-p", package, "-v", &events.to_string()])
+            .args(["-s", &target, "shell", "monkey", "-p", package, "-v", &events_str])
             .output()
             .await
             .map_err(ExecutorError::ExecutionFailed)?;
@@ -152,7 +154,7 @@ impl AndroidExecutor {
         if output.status.success() {
             Ok(())
         } else {
-            Err(ExecutorError::ExecutionFailed(std::io::Error::new(std::io::ErrorKind::Other, "Monkey crashed")))
+            Err(ExecutorError::ExecutionFailed(std::io::Error::other("Monkey crashed")))
         }
     }
 
@@ -160,15 +162,14 @@ impl AndroidExecutor {
     async fn capture_logcat(&self, adb_path: &Path, log_tx: &Option<tokio::sync::mpsc::Sender<forgeyard_model::LogEvent>>, job_id: forgeyard_model::JobId) {
         let target = format!("emulator-{}", self.emulator_port);
         let output = Command::new(adb_path)
-            .args(&["-s", &target, "logcat", "-d"])
+            .args(["-s", &target, "logcat", "-d"])
             .output()
             .await;
         
         if let Ok(out) = output {
             if let Some(tx) = log_tx {
                 let text = String::from_utf8_lossy(&out.stdout);
-                let mut seq = 1000;
-                for line in text.lines() {
+                for (seq, line) in (1000..).zip(text.lines()) {
                     let _ = tx.send(forgeyard_model::LogEvent {
                         run_id: None,
                         job_id,
@@ -177,13 +178,12 @@ impl AndroidExecutor {
                         timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis().to_string(),
                         message: format!("[LOGCAT] {}", line),
                     }).await;
-                    seq += 1;
                 }
             }
         }
         
         // Clear logcat
-        let _ = Command::new(adb_path).args(&["-s", &target, "logcat", "-c"]).output().await;
+        let _ = Command::new(adb_path).args(["-s", &target, "logcat", "-c"]).output().await;
     }
 }
 
@@ -233,8 +233,8 @@ impl Executor for AndroidExecutor {
 
                 let mut child = cmd.spawn().map_err(ExecutorError::ExecutionFailed)?;
 
-                let stdout = child.stdout.take().ok_or_else(|| ExecutorError::ExecutionFailed(std::io::Error::new(std::io::ErrorKind::Other, "Failed to capture stdout")))?;
-                let stderr = child.stderr.take().ok_or_else(|| ExecutorError::ExecutionFailed(std::io::Error::new(std::io::ErrorKind::Other, "Failed to capture stderr")))?;
+                let stdout = child.stdout.take().ok_or_else(|| ExecutorError::ExecutionFailed(std::io::Error::other("Failed to capture stdout")))?;
+                let stderr = child.stderr.take().ok_or_else(|| ExecutorError::ExecutionFailed(std::io::Error::other("Failed to capture stderr")))?;
 
                 let job_name_out = job.name.clone();
                 let job_name_err = job.name.clone();

@@ -87,12 +87,11 @@ pub mod graph {
             output.push_str(&format!("- Total Symbols: {} | Call Edges: {}\n", graph.total_nodes, graph.total_edges));
             output.push_str("#### Public API Surface & Core Entities:\n");
 
-            let mut count = 0;
             // Prioritize public symbols first, then others
             let mut sorted_symbols = graph.symbols.clone();
             sorted_symbols.sort_by_key(|s| !s.is_public);
 
-            for sym in &sorted_symbols {
+            for (count, sym) in sorted_symbols.iter().enumerate() {
                 if output.len() >= self.max_token_budget {
                     output.push_str(&format!("\n... [RTK Truncated: {} symbols omitted for token budget]\n", graph.symbols.len() - count));
                     break;
@@ -103,7 +102,6 @@ pub mod graph {
                     "- [{}{:?}] `{}` in `{}`\n",
                     pub_prefix, sym.kind, sym.label, sym.file_path
                 ));
-                count += 1;
             }
 
             output

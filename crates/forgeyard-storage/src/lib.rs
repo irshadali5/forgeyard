@@ -143,11 +143,9 @@ impl MetadataStore {
             .query("SELECT job_id FROM cache_entries WHERE fingerprint = $1", (fingerprint.to_string(),))
             .map_err(|e| StorageError::Db(e.to_string()))?;
         
-        for row in rows {
-            if let Ok(r) = row {
-                if let Ok(val) = r.get::<String>(0) {
-                    return Ok(Some(val));
-                }
+        for r in rows.flatten() {
+            if let Ok(val) = r.get::<String>(0) {
+                return Ok(Some(val));
             }
         }
         Ok(None)
@@ -221,26 +219,24 @@ impl MetadataStore {
             .map_err(|e| StorageError::Db(e.to_string()))?;
         
         let mut jobs = Vec::new();
-        for row in rows {
-            if let Ok(r) = row {
-                let id: String = r.get(0).map_err(|e| StorageError::Db(e.to_string()))?;
-                let name: String = r.get(1).map_err(|e| StorageError::Db(e.to_string()))?;
-                let state_str: String = r.get(2).map_err(|e| StorageError::Db(e.to_string()))?;
-                let fingerprint: String = r.get(3).unwrap_or_default();
-                let deps_json: String = r.get(4).unwrap_or_else(|_| "[]".to_string());
-                let dependencies: Vec<String> = serde_json::from_str(&deps_json).unwrap_or_default();
-                
-                let state = serde_json::from_str(&state_str).unwrap_or(JobState::Created);
-                            
-                jobs.push(JobStatus { 
-                    id, 
-                    run_id: run_id_str.clone(),
-                    name, 
-                    state,
-                    fingerprint: if fingerprint.is_empty() { None } else { Some(fingerprint) },
-                    dependencies
-                });
-            }
+        for r in rows.flatten() {
+            let id: String = r.get(0).map_err(|e| StorageError::Db(e.to_string()))?;
+            let name: String = r.get(1).map_err(|e| StorageError::Db(e.to_string()))?;
+            let state_str: String = r.get(2).map_err(|e| StorageError::Db(e.to_string()))?;
+            let fingerprint: String = r.get(3).unwrap_or_default();
+            let deps_json: String = r.get(4).unwrap_or_else(|_| "[]".to_string());
+            let dependencies: Vec<String> = serde_json::from_str(&deps_json).unwrap_or_default();
+            
+            let state = serde_json::from_str(&state_str).unwrap_or(JobState::Created);
+                        
+            jobs.push(JobStatus { 
+                id, 
+                run_id: run_id_str.clone(),
+                name, 
+                state,
+                fingerprint: if fingerprint.is_empty() { None } else { Some(fingerprint) },
+                dependencies
+            });
         }
         Ok(jobs)
     }
@@ -253,29 +249,27 @@ impl MetadataStore {
             .map_err(|e| StorageError::Db(e.to_string()))?;
             
         let mut events = Vec::new();
-        for row in rows {
-            if let Ok(r) = row {
-                let sequence_i64 = r.get::<i64>(0).map_err(|e| StorageError::Db(e.to_string()))?;
-                let sequence = sequence_i64 as u64;
-                let stream_str = r.get::<String>(1).map_err(|e| StorageError::Db(e.to_string()))?;
-                let timestamp = r.get::<String>(2).map_err(|e| StorageError::Db(e.to_string()))?;
-                let message = r.get::<String>(3).map_err(|e| StorageError::Db(e.to_string()))?;
-                
-                let stream = match stream_str.as_str() {
-                    "stdout" => forgeyard_model::LogStream::Stdout,
-                    "stderr" => forgeyard_model::LogStream::Stderr,
-                    _ => forgeyard_model::LogStream::System,
-                };
-                
-                events.push(forgeyard_model::LogEvent {
-                    run_id: None,
-                    job_id,
-                    sequence,
-                    stream,
-                    timestamp,
-                    message,
-                });
-            }
+        for r in rows.flatten() {
+            let sequence_i64 = r.get::<i64>(0).map_err(|e| StorageError::Db(e.to_string()))?;
+            let sequence = sequence_i64 as u64;
+            let stream_str = r.get::<String>(1).map_err(|e| StorageError::Db(e.to_string()))?;
+            let timestamp = r.get::<String>(2).map_err(|e| StorageError::Db(e.to_string()))?;
+            let message = r.get::<String>(3).map_err(|e| StorageError::Db(e.to_string()))?;
+            
+            let stream = match stream_str.as_str() {
+                "stdout" => forgeyard_model::LogStream::Stdout,
+                "stderr" => forgeyard_model::LogStream::Stderr,
+                _ => forgeyard_model::LogStream::System,
+            };
+            
+            events.push(forgeyard_model::LogEvent {
+                run_id: None,
+                job_id,
+                sequence,
+                stream,
+                timestamp,
+                message,
+            });
         }
         Ok(events)
     }
@@ -286,11 +280,9 @@ impl MetadataStore {
             .map_err(|e| StorageError::Db(e.to_string()))?;
             
         let mut runs = Vec::new();
-        for row in rows {
-            if let Ok(r) = row {
-                let id = r.get::<String>(0).map_err(|e| StorageError::Db(e.to_string()))?;
-                runs.push(id);
-            }
+        for r in rows.flatten() {
+            let id = r.get::<String>(0).map_err(|e| StorageError::Db(e.to_string()))?;
+            runs.push(id);
         }
         Ok(runs)
     }
@@ -300,7 +292,6 @@ impl MetadataStore {
         
         let total_runs = conn.query("SELECT COUNT(*) FROM runs", ())
             .map_err(|e| StorageError::Db(e.to_string()))?
-            .into_iter()
             .next()
             .and_then(|r| r.ok())
             .and_then(|r| r.get::<i64>(0).ok())
@@ -308,7 +299,6 @@ impl MetadataStore {
 
         let total_jobs = conn.query("SELECT COUNT(*) FROM jobs", ())
             .map_err(|e| StorageError::Db(e.to_string()))?
-            .into_iter()
             .next()
             .and_then(|r| r.ok())
             .and_then(|r| r.get::<i64>(0).ok())
@@ -316,7 +306,6 @@ impl MetadataStore {
 
         let total_logs = conn.query("SELECT COUNT(*) FROM logs", ())
             .map_err(|e| StorageError::Db(e.to_string()))?
-            .into_iter()
             .next()
             .and_then(|r| r.ok())
             .and_then(|r| r.get::<i64>(0).ok())
@@ -324,7 +313,6 @@ impl MetadataStore {
 
         let cache_hits = conn.query("SELECT COUNT(*) FROM cache_entries", ())
             .map_err(|e| StorageError::Db(e.to_string()))?
-            .into_iter()
             .next()
             .and_then(|r| r.ok())
             .and_then(|r| r.get::<i64>(0).ok())
@@ -350,22 +338,20 @@ impl MetadataStore {
 
         let mut scored_results = Vec::new();
 
-        for row in rows {
-            if let Ok(r) = row {
-                let id = r.get::<String>(0).map_err(|e| StorageError::Db(e.to_string()))?;
-                let label = r.get::<String>(1).map_err(|e| StorageError::Db(e.to_string()))?;
-                let vec_str = r.get::<String>(2).map_err(|e| StorageError::Db(e.to_string()))?;
-                let vector: Vec<f32> = serde_json::from_str(&vec_str).unwrap_or_default();
+        for r in rows.flatten() {
+            let id = r.get::<String>(0).map_err(|e| StorageError::Db(e.to_string()))?;
+            let label = r.get::<String>(1).map_err(|e| StorageError::Db(e.to_string()))?;
+            let vec_str = r.get::<String>(2).map_err(|e| StorageError::Db(e.to_string()))?;
+            let vector: Vec<f32> = serde_json::from_str(&vec_str).unwrap_or_default();
 
-                if vector.len() == query_vector.len() && !vector.is_empty() {
-                    let dot_product: f32 = query_vector.iter().zip(vector.iter()).map(|(a, b)| a * b).sum();
-                    let norm_q: f32 = query_vector.iter().map(|a| a * a).sum::<f32>().sqrt();
-                    let norm_v: f32 = vector.iter().map(|b| b * b).sum::<f32>().sqrt();
+            if vector.len() == query_vector.len() && !vector.is_empty() {
+                let dot_product: f32 = query_vector.iter().zip(vector.iter()).map(|(a, b)| a * b).sum();
+                let norm_q: f32 = query_vector.iter().map(|a| a * a).sum::<f32>().sqrt();
+                let norm_v: f32 = vector.iter().map(|b| b * b).sum::<f32>().sqrt();
 
-                    if norm_q > 0.0 && norm_v > 0.0 {
-                        let similarity = dot_product / (norm_q * norm_v);
-                        scored_results.push((id, label, similarity));
-                    }
+                if norm_q > 0.0 && norm_v > 0.0 {
+                    let similarity = dot_product / (norm_q * norm_v);
+                    scored_results.push((id, label, similarity));
                 }
             }
         }

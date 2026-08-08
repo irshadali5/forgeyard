@@ -76,7 +76,7 @@ impl LocalRunner {
             let executor: Box<dyn forgeyard_executor::Executor> = if config.strict_isolation {
                 Box::new(SandboxExecutor::new())
             } else {
-                Box::new(ProcessExecutor::default())
+                Box::new(ProcessExecutor)
             };
             Self {
                 executor,
@@ -278,7 +278,7 @@ impl LocalRunner {
                 if file_path.exists() {
                     let data = tokio::fs::read(&file_path).await?;
                     let digest = self.cas.write_blob(&data).await?;
-                    debug!("Output {} saved with digest {}", file_path, hex::encode(&digest.bytes));
+                    debug!("Output {} saved with digest {}", file_path, hex::encode(digest.bytes));
                     uploaded_count += 1;
                 }
             }

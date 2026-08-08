@@ -117,10 +117,10 @@ impl QuicServer {
                                                     let resolved_secrets = broker_clone.resolve_job_secrets(&job.secrets).await.unwrap_or_default();
 
                                                     let resp = DaemonMessage::LeaseResponse(
-                                                        JobLeaseResponse {
+                                                        Box::new(JobLeaseResponse {
                                                             job: Some(job.clone()),
                                                             resolved_secrets,
-                                                        },
+                                                        }),
                                                     );
                                                     if let Ok(out) = postcard::to_allocvec(&resp) {
                                                         if let Err(e) = framed_write.send(bytes::Bytes::from(out)).await {
@@ -129,7 +129,7 @@ impl QuicServer {
                                                     }
                                                 } else {
                                                     let resp = DaemonMessage::LeaseResponse(
-                                                        JobLeaseResponse { job: None, resolved_secrets: std::collections::HashMap::new() },
+                                                        Box::new(JobLeaseResponse { job: None, resolved_secrets: std::collections::HashMap::new() }),
                                                     );
                                                     if let Ok(out) = postcard::to_allocvec(&resp) {
                                                         let _ = framed_write.send(bytes::Bytes::from(out)).await;
@@ -170,7 +170,7 @@ impl QuicServer {
                                                                 
                                                                 let mut file = file;
                                                                 let _ = tokio::io::copy(&mut file, &mut uni_stream).await;
-                                                                let _ = uni_stream.finish();
+                                                                std::mem::drop(uni_stream.finish());
                                                             }
                                                         } else {
                                                             let resp = DaemonMessage::ArtifactStreamReady { hash: hash.clone(), exists: false };
