@@ -362,7 +362,7 @@ impl TeleportShellServer {
         }
     }
 
-    pub fn execute_shell_command(session: &TeleportShellSession, command: &str) -> Result<String, String> {
+    pub fn execute_shell_command(_session: &TeleportShellSession, command: &str) -> Result<String, String> {
         if command.trim().is_empty() {
             return Ok("".to_string());
         }
