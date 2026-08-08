@@ -403,6 +403,35 @@ mod tests {
         assert!(report.is_compliant);
         assert!(report.audit_signature.len() > 10);
     }
+
+    #[test]
+    fn test_license_policy_gate() {
+        let gate = LicensePolicyGate::new();
+        let deps = vec![
+            DependencyLicenseInfo {
+                package_name: "tokio".to_string(),
+                version: "1.53.1".to_string(),
+                license_expr: "MIT".to_string(),
+            },
+            DependencyLicenseInfo {
+                package_name: "serde".to_string(),
+                version: "1.0.229".to_string(),
+                license_expr: "MIT OR Apache-2.0".to_string(),
+            },
+            DependencyLicenseInfo {
+                package_name: "gpl_violator".to_string(),
+                version: "1.0.0".to_string(),
+                license_expr: "GPL-3.0-only".to_string(),
+            },
+        ];
+
+        let findings = gate.evaluate_dependencies(&deps);
+        assert_eq!(findings.len(), 3);
+        assert_eq!(findings[0].status, PolicyFindingStatus::Pass);
+        assert_eq!(findings[1].status, PolicyFindingStatus::Pass);
+        assert_eq!(findings[2].status, PolicyFindingStatus::Fail);
+        assert!(findings[2].message.contains("gpl_violator"));
+    }
 }
 
 /// Phase 23: Continuous Compliance & SOC2 / ISO 27001 Audit Ledger
@@ -445,5 +474,95 @@ impl ComplianceAuditLedger {
             audit_signature,
             timestamp_epoch: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
         }
+    }
+}
+
+/// Phase 25: Automated Dependency License Gate & Commercial Closed-Source Safety Assertion
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DependencyLicenseInfo {
+    pub package_name: String,
+    pub version: String,
+    pub license_expr: String,
+}
+
+pub struct LicensePolicyGate {
+    pub allowed_licenses: Vec<String>,
+    pub forbidden_patterns: Vec<String>,
+}
+
+impl Default for LicensePolicyGate {
+    fn default() -> Self {
+        Self {
+            allowed_licenses: vec![
+                "Apache-2.0".to_string(),
+                "MIT".to_string(),
+                "BSD-2-Clause".to_string(),
+                "BSD-3-Clause".to_string(),
+                "ISC".to_string(),
+                "CC0-1.0".to_string(),
+                "Unlicense".to_string(),
+                "BSL-1.0".to_string(),
+                "0BSD".to_string(),
+                "MPL-2.0".to_string(),
+            ],
+            forbidden_patterns: vec![
+                "GPL-1.0".to_string(),
+                "GPL-2.0".to_string(),
+                "GPL-3.0".to_string(),
+                "AGPL-1.0".to_string(),
+                "AGPL-3.0".to_string(),
+                "BUSL".to_string(),
+                "SSPL".to_string(),
+            ],
+        }
+    }
+}
+
+impl LicensePolicyGate {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn evaluate_dependencies(&self, dependencies: &[DependencyLicenseInfo]) -> Vec<PolicyFinding> {
+        let mut findings = Vec::new();
+
+        for dep in dependencies {
+            let lic_upper = dep.license_expr.to_uppercase();
+
+            let has_permissive = lic_upper.contains("MIT")
+                || lic_upper.contains("APACHE")
+                || lic_upper.contains("BSD")
+                || lic_upper.contains("ISC")
+                || lic_upper.contains("CC0")
+                || lic_upper.contains("UNLICENSE")
+                || lic_upper.contains("BSL-1.0");
+
+            let is_forbidden = self.forbidden_patterns.iter().any(|pattern| {
+                let pat_upper = pattern.to_uppercase();
+                lic_upper.contains(&pat_upper) && !has_permissive
+            });
+
+            if is_forbidden {
+                findings.push(PolicyFinding {
+                    rule: "third_party_copyleft_prohibited".to_string(),
+                    status: PolicyFindingStatus::Fail,
+                    message: format!(
+                        "Dependency [{}] v{} has non-compliant copyleft or commercial-restricting license: '{}'",
+                        dep.package_name, dep.version, dep.license_expr
+                    ),
+                });
+            } else {
+                findings.push(PolicyFinding {
+                    rule: "license_permissive_compliant".to_string(),
+                    status: PolicyFindingStatus::Pass,
+                    message: format!(
+                        "Dependency [{}] v{} license is compliant: '{}'",
+                        dep.package_name, dep.version, dep.license_expr
+                    ),
+                });
+            }
+        }
+
+        findings
     }
 }
