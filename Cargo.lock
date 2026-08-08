@@ -2599,10 +2599,12 @@ name = "forgeyard-sandbox"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "blake3",
  "camino",
  "forgeyard-archive",
  "forgeyard-executor",
  "forgeyard-model",
+ "serde",
  "thiserror 1.0.69",
  "tokio",
  "tracing",

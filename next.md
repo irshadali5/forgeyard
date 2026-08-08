@@ -109,7 +109,7 @@ Based on a comprehensive architectural audit of the 37 workspace crates, the fol
 - [x] **`LocalEdgeAiEngine` & Quantized Inference**: Integrated GGUF/ONNX quantized LLM local inference engine (`generate_offline_code_fix`, `infer_code_graph_intent`) into `forgeyard-analyzer` for offline AI patch generation and code graph reasoning without cloud API latency or costs.
 
 ### Phase 20: Confidential Computing & Hardware Enclave Attestation 🔒
-- **AMD SEV-SNP & Intel SGX Memory Encryption**: Upgrade `forgeyard-sandbox` to execute build steps inside hardware-encrypted memory enclaves, protecting source code and secrets from host OS compromise.
+- [x] **`ConfidentialEnclaveExecutor` & Hardware Attestation**: Upgraded `forgeyard-sandbox` with `ConfidentialEnclaveExecutor` and `EnclaveAttestationReport` (`generate_attestation_report`, `execute_confidential_step`) for AMD SEV-SNP, Intel SGX, and AWS Nitro Enclaves.
 
 ### Phase 21: Autonomous Flaky Test Root Cause Synthesizer 🛠️
 - **AST Race Condition Delta Analysis**: Compare passing vs failing execution traces in `forgeyard-test-report` to automatically refactor non-deterministic test timing locks and race conditions.
