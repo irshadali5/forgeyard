@@ -53,4 +53,34 @@ This document tracks completed implementation phases, component tier coverage, a
 - [x] **`IoUringLogWriter` Asynchronous Ring Log Appender**: Direct kernel submission ring file append engine for high-throughput pipeline log ingestion.
 - [x] **Kernel Compatibility & Cross-Platform Fallback**: Conditional compilation (`#[cfg(target_os = "linux")]`) with runtime capability detection (`is_io_uring_supported()`) gracefully falling back to standard Tokio async file I/O on Windows/macOS or older Linux kernels.
 
+---
+
+## 3. System & Architecture Analysis: Recommended Future Expansion Blueprint 🚀
+
+Based on a comprehensive architectural audit of the 37 workspace crates, the following next-generation technical expansions are recommended to maximize performance, security, and scalability:
+
+### Phase 7: eBPF Linux Kernel Process & Network Telemetry Engine 🐝
+- **Low-Overhead Kernel Probing**: Implement eBPF `sys_enter_execve` tracepoints and `kprobes` to monitor child process execution, socket connect latencies, and file access without user-space polling overhead.
+- **Zero-Trust Network Egress Enforcement**: Audit and restrict outgoing socket connections during untrusted job execution to prevent secret exfiltration.
+
+### Phase 8: Cgroup V2 Hardware Resource Governor & Quotas ⚙️
+- **Dynamic Worker Quota Limits**: Integrate Linux Cgroup v2 (`memory.max`, `memory.high`, `cpu.max`, `io.max`) per job execution slice to prevent rogue build steps from starving system resources.
+- **Out-Of-Memory (OOM) Protection**: Real-time cgroup memory pressure listener providing graceful job cancellation before kernel OOM killer terminates core daemon services.
+
+### Phase 9: P2P Gossip / DHT CAS Artifact Distribution Mesh 🕸️
+- **Distributed Peer-to-Peer Chunk Sharing**: Integrate Kademlia DHT and Gossip protocol for multi-region edge runner clusters.
+- **Daemon Offloading**: Enables edge build nodes to fetch heavy CAS build artifacts and container layers directly from nearby peer runners, reducing central daemon bandwidth by 70-90%.
+
+### Phase 10: Autonomous AI Pipeline Remediation & AST Patch Proposal 🤖
+- **Automated Fix Generation**: Combine Tree-Sitter AST parser context (`forgeyard-analyzer`), compiler error tracebacks (`CargoTestParser`, `JUnitXmlParser`), and LLM context trimming (`RtkCompressor`) to generate automated fix patches (`.patch`) for broken builds.
+- **Flaky Test Auto-Quarantine**: Automatically isolate flaky test cases detected by `FlakyTestDetector` without failing critical deployment pipelines.
+
+### Phase 11: WebAssembly (WASM) Zero-Trust Plugin Sandbox 🧩
+- **Extensible WASM Runner Engine**: Integrate `wasmtime` runtime for executing user-written build step plugins, custom security policy checkers, and artifact transformers in a lightweight, sandboxed WASM environment with explicit capability grants.
+
+### Phase 12: Fine-Grained Differential AST Fingerprinting Engine 🔍
+- **Semantic AST Fingerprinting**: Hash public function signatures and type definitions rather than raw file bytes.
+- **Smart DAG Skipping**: Skip execution of downstream DAG jobs when file edits affect only private function bodies or comments, drastically cutting redundant build execution time.
+
+
 
