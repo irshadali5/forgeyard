@@ -1,0 +1,74 @@
+# Forgeyard Licensing & Commercial Dual-Licensing Terms
+
+```text
+SPDX-License-Identifier: AGPL-3.0-only AND (MIT OR Apache-2.0)
+Copyright (c) 2026 Forgeyard Authors & Maintainers. All rights reserved.
+```
+
+Forgeyard is distributed under a **Dual-Licensing Strategy** designed to encourage open-source library adoption while protecting the core platform applications and infrastructure services from unauthorized commercial cloud exploitation (such as third-party hosting, re-branding, or managed SaaS offerings by cloud giants without contributing back or holding a commercial license).
+
+---
+
+## 1. Directory License Mapping
+
+The software in this repository is partitioned by directory boundaries as follows:
+
+| Directory Path | Component Description | Primary License | License File |
+| :--- | :--- | :--- | :--- |
+| `crates/*` | Shared core capability libraries, domain models, CAS engine | **MIT OR Apache-2.0** | [`LICENSES/MIT.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/MIT.txt) / [`Apache-2.0.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/Apache-2.0.txt) |
+| `ecosystems/*` | Language adapters (Rust, Go, Python, C/C++, WASM, etc.) | **MIT OR Apache-2.0** | [`LICENSES/MIT.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/MIT.txt) / [`Apache-2.0.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/Apache-2.0.txt) |
+| `protocols/*` | Wire protocols, envelope definitions, and RPC interfaces | **MIT OR Apache-2.0** | [`LICENSES/MIT.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/MIT.txt) / [`Apache-2.0.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/Apache-2.0.txt) |
+| `schemas/*` | API, manifest, event, and configuration schemas | **MIT OR Apache-2.0** | [`LICENSES/MIT.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/MIT.txt) / [`Apache-2.0.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/Apache-2.0.txt) |
+| `apps/*` | Standalone binaries, runner daemons, server applications, CLI | **GNU AGPLv3** | [`LICENSES/AGPL-3.0.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/AGPL-3.0.txt) |
+| `deploy/*` | Deployment manifests (Kubernetes, Docker Compose, systemd) | **GNU AGPLv3** | [`LICENSES/AGPL-3.0.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/AGPL-3.0.txt) |
+| `infra/*` | Infrastructure code (Terraform, Ansible, Nix, Devcontainers) | **GNU AGPLv3** | [`LICENSES/AGPL-3.0.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/AGPL-3.0.txt) |
+| `platforms/*` | Platform target executables and runner execution engines | **GNU AGPLv3** | [`LICENSES/AGPL-3.0.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/AGPL-3.0.txt) |
+| `native/*` | Low-level execution tooling, linkers, sysroots, and binaries | **GNU AGPLv3** | [`LICENSES/AGPL-3.0.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/AGPL-3.0.txt) |
+
+---
+
+## 2. Permissive Library License (`crates/`, `ecosystems/`, `protocols/`, `schemas/`)
+
+All code within the library directories listed above is dual-licensed under either:
+
+* **MIT License** ([`LICENSES/MIT.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/MIT.txt))
+* **Apache License, Version 2.0** ([`LICENSES/Apache-2.0.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/Apache-2.0.txt))
+
+You may choose whichever license fits your project requirements. You are free to embed, link, modify, and distribute these library crates in open-source, proprietary, or commercial software without copyleft obligations.
+
+---
+
+## 3. Strong Copyleft Application License (`apps/`, `deploy/`, `infra/`, etc.)
+
+All application binaries, server daemons, build orchestration engines, runner execution environments, and infrastructure scripts are licensed under the **GNU Affero General Public License v3.0 (AGPLv3)** ([`LICENSES/AGPL-3.0.txt`](file:///home/irshad/Projects/forgeyard/LICENSES/AGPL-3.0.txt)).
+
+### Summary of AGPLv3 Obligations:
+1. **Free Community & Non-Commercial Usage**: You may freely download, compile, inspect, run, self-host, and modify Forgeyard applications for personal, academic, research, non-profit, or internal non-commercial evaluation.
+2. **Network Copyleft & Source Code Disclosure (Section 13)**: If you run a modified version of Forgeyard over a network (as a service, internal portal, hosted CI/CD system, or cloud offering), you **must make the complete corresponding source code** available to all users interacting with it remotely under the terms of the AGPLv3.
+3. **Anti-Exploitation Clause**: Third-party commercial entities, cloud providers, and managed service vendors are strictly prohibited from wrapping, hosting, re-branding, or offering Forgeyard as a proprietary cloud service without making all modifications public OR acquiring an Enterprise Commercial License.
+
+---
+
+## 4. Enterprise Commercial License & AGPL Exemption
+
+If your company or organization wishes to use Forgeyard applications commercially without being bound by the copyleft and network disclosure terms of the AGPLv3, you may purchase an **Enterprise Commercial License**.
+
+### What the Commercial License Grants:
+* ✅ **AGPLv3 Copyleft Waiver**: Full exemption from AGPLv3 source code disclosure requirements.
+* ✅ **Proprietary Modifications**: Freedom to modify, integrate, and extend Forgeyard with internal corporate infrastructure, security policies, and proprietary tools without publishing your code.
+* ✅ **On-Premise Managed Installation & Setup**: Professional deployment, hardware tuning, air-gapped configuration, and setup performed on your workstations or internal servers by the maintainer.
+* ✅ **Enterprise SLA & Support**: Guaranteed response times, security patch backports, priority bug fixes, and continuous software updates.
+* ✅ **Commercial Indemnification**: Explicit legal protection and warranty coverage tailored for enterprise compliance.
+
+### Purchasing & Inquiries
+To request a commercial license quote, schedule an on-premises installation assessment, or discuss custom enterprise agreements:
+
+* **Email**: `licensing@forgeyard.dev`
+* **Website**: `https://forgeyard.dev/enterprise`
+* **Licensing FAQ**: [`docs/LICENSING_FAQ.md`](file:///home/irshad/Projects/forgeyard/docs/LICENSING_FAQ.md)
+
+---
+
+## 5. Third-Party Dependencies & Attributions
+
+Forgeyard includes third-party open-source components governed by their respective licenses (MIT, Apache-2.0, BSD-3-Clause, etc.). All third-party notices, license texts, and copyright attributions are preserved in workspace manifests (`Cargo.lock`) and third-party attribution documentation.
