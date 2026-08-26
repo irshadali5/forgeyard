@@ -23,10 +23,6 @@ if [ ! -d "${WIKI_SRC}" ]; then
   exit 1
 fi
 
-# Ensure wiki index and navigation files are up-to-date
-echo "Regenerating wiki navigation index..."
-python3 "${ROOT_DIR}/scripts/generate_wiki_index.py"
-
 # Acquire GitHub token
 TOKEN="${GITHUB_TOKEN:-}"
 if [ -z "${TOKEN}" ]; then
