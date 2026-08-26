@@ -1,0 +1,56 @@
+name: Deploy System Architecture Wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'wiki/**'
+      - 'sys-arch/**'
+      - 'scripts/deploy-wiki.sh'
+      - 'scripts/generate_wiki_index.py'
+      - '.github/workflows/deploy-wiki.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-wiki-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-wiki:
+    name: Deploy Architecture to GitHub Wiki
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate Wiki Navigation & Indices
+        run: |
+          python3 scripts/generate_wiki_index.py
+
+      - name: Deploy to GitHub Wiki
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          chmod +x scripts/deploy-wiki.sh
+          ./scripts/deploy-wiki.sh
+
+      - name: Generate Job Summary
+        if: always()
+        run: |
+          echo "### 📚 Forgeyard Architecture Wiki Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target:** [GitHub Wiki](https://github.com/${{ github.repository }}/wiki)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Specifications:** 82 system architecture specifications" >> $GITHUB_STEP_SUMMARY
+          echo "- **Navigation:** Home page, hierarchical sidebar, and footer generated." >> $GITHUB_STEP_SUMMARY
