@@ -1,7 +1,6 @@
 [book]
 authors = ["Forgeyard Maintainers"]
 language = "en"
-multilingual = false
 src = "src"
 title = "Forgeyard System Architecture & Engineering Documentation"
 
