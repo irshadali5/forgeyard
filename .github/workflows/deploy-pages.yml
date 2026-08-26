@@ -1,0 +1,68 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'sys-arch/**'
+      - 'docs/**'
+      - 'src/**'
+      - 'theme/**'
+      - 'book.toml'
+      - 'scripts/build-docs.sh'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy Documentation to GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: 'latest'
+
+      - name: Assemble & Compile Documentation
+        run: |
+          chmod +x scripts/build-docs.sh
+          ./scripts/build-docs.sh
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './book'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Generate Job Summary
+        if: always()
+        run: |
+          echo "### 🚀 Forgeyard Documentation Deployed to GitHub Pages" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Site URL:** [https://irshadali5.github.io/forgeyard/](https://irshadali5.github.io/forgeyard/)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Engine:** mdBook (Native Rust)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Specifications Included:** 82 system architecture specifications + full subsystem & VCS guides" >> $GITHUB_STEP_SUMMARY

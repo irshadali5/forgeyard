@@ -1,0 +1,148 @@
+# Summary
+
+[Welcome to Forgeyard](README.md)
+
+# Part I: Core Foundations & Source Domain
+- [01 — Core Domain & Foundation](sys-arch/01-forgeyard-core-domain-foundation.md)
+- [Change Proposal, Review & Integration](sys-arch/forgeyard-change-proposal-system-architecture.md)
+- [VCS-Neutral Source Control System](sys-arch/forgeyard-vcs-neutral-system-architecture.md)
+
+# Part II: Storage, CAS & Data Plane
+- [02 — Storage & Metadata Architecture](sys-arch/02-forgeyard-storage-metadata.md)
+- [03 — CAS & Artifact Data Plane](sys-arch/03-forgeyard-cas-artifact-data-plane.md)
+- [38 — Remote Caching & Build Acceleration](sys-arch/38-forgeyard-cache-build-acceleration-remote-cache-correctness-system-architecture.md)
+- [46 — Data Lifecycle, Retention & Deletion](sys-arch/46-forgeyard-data-lifecycle-retention-archival-deletion-privacy-governance-system-architecture.md)
+- [52 — Artifact Registry & OCI Distribution](sys-arch/52-forgeyard-artifact-registry-package-repository-oci-internal-distribution-system-architecture.md)
+- [63 — Database Migration & Transformation](sys-arch/63-forgeyard-database-schema-migration-online-backfill-data-transformation-zero-downtime-system-architecture.md)
+
+# Part III: Pipeline Engine, IR, State Machine & Scheduling
+- [04 — Pipeline IR, Parsing & Planning](sys-arch/04-forgeyard-pipeline-ir-parsing-planning.md)
+- [05 — Run & Job State Machine](sys-arch/05-forgeyard-run-job-state-machine.md)
+- [06 — Distributed Scheduler Architecture](sys-arch/06-forgeyard-scheduler-system-architecture.md)
+- [10 — Events & State Reconciliation](sys-arch/10-forgeyard-events-reconciliation-system-architecture.md)
+- [44 — Pipeline Triggers & Event Execution](sys-arch/44-forgeyard-pipeline-triggers-schedules-manual-dispatch-event-driven-system-architecture.md)
+- [60 — Workflow Concurrency & Distributed Locks](sys-arch/60-forgeyard-workflow-concurrency-distributed-locks-idempotency-reservations-exclusive-coordination-system-architecture.md)
+- [69 — Job Checkpointing & Preemption](sys-arch/69-forgeyard-job-checkpointing-suspend-resume-preemption-graceful-cancellation-interruptible-runner-recovery-system-architecture.md)
+
+# Part IV: Runners, Sandboxing, Transport & Fleet Orchestration
+- [07 — Runner Daemon Agent Architecture](sys-arch/07-forgeyard-runner-agent-system-architecture.md)
+- [08 — Sandbox Executor & MicroVM Isolation](sys-arch/08-forgeyard-sandbox-executor-system-architecture.md)
+- [09 — Internal Transport & QUIC Protocol](sys-arch/09-forgeyard-transport-quic-internal-protocol.md)
+- [20 — Device Lab & Hardware Testbeds](sys-arch/20-forgeyard-device-lab-system-architecture.md)
+- [43 — Runner Fleet Autoscaling & Provisioning](sys-arch/43-forgeyard-runner-fleet-autoscaling-capacity-provisioning-infrastructure-system-architecture.md)
+- [58 — Runner Image Factory & Baseline Attestation](sys-arch/58-forgeyard-runner-image-factory-golden-image-patch-management-baseline-attestation-system-architecture.md)
+- [59 — Zero-Trust Network Connectivity & Tunneling](sys-arch/59-forgeyard-network-connectivity-private-resource-access-egress-tunneling-zero-trust-system-architecture.md)
+
+# Part V: Security, Policy, Secrets & Supply Chain
+- [11 — Policy, Authorization & Identity](sys-arch/11-forgeyard-policy-authorization-identity-system-architecture.md)
+- [12 — Secrets Trust & Credential Security](sys-arch/12-forgeyard-secrets-trust-credential-security-system-architecture.md)
+- [13 — Supply Chain Security & Provenance Signing](sys-arch/13-forgeyard-supply-chain-sbom-provenance-signing-system-architecture.md)
+- [27 — Multi-Tenancy Quotas & Resource Governance](sys-arch/27-forgeyard-multi-tenancy-quotas-resource-governance-system-architecture.md)
+- [28 — Audit Logs, Compliance & Security](sys-arch/28-forgeyard-audit-compliance-security-governance-system-architecture.md)
+- [40 — Threat Modeling & Incident Response](sys-arch/40-forgeyard-security-threat-model-hardening-incident-response-system-architecture.md)
+
+# Part VI: Packaging, Releases, Deployment & Delivery
+- [14 — Packaging Subsystem Architecture](sys-arch/14-forgeyard-packaging-system-architecture.md)
+- [15 — Release Automation & Publishing](sys-arch/15-forgeyard-release-system-architecture.md)
+- [16 — Deployment Engine & Orchestration](sys-arch/16-forgeyard-deployment-system-architecture.md)
+- [41 — Release Distribution & Installer Channels](sys-arch/41-forgeyard-release-distribution-update-delivery-installer-channel-system-architecture.md)
+- [62 — Progressive Delivery & Canary Analysis](sys-arch/62-forgeyard-environment-promotion-progressive-delivery-feature-rollout-canary-rollback-system-architecture.md)
+- [67 — Artifact Promotion & Release Trains](sys-arch/67-forgeyard-artifact-promotion-policy-release-train-environment-channel-lifecycle-governance-system-architecture.md)
+- [Hermetic Functional Packaging Architecture](sys-arch/forgeyard-hermetic-functional-packaging-architecture.md)
+
+# Part VII: Observability, Diagnostics, Testing & Quality
+- [17 — Observability & Health Doctor](sys-arch/17-forgeyard-observability-health-doctor-system-architecture.md)
+- [31 — Search Indexing & Operational Analytics](sys-arch/31-forgeyard-search-indexing-query-operational-analytics-system-architecture.md)
+- [32 — Quality Gates & Flaky Test Intelligence](sys-arch/32-forgeyard-test-results-quality-gates-coverage-flaky-intelligence-system-architecture.md)
+- [33 — Benchmarks & Performance Regression](sys-arch/33-forgeyard-benchmark-performance-regression-load-capacity-system-architecture.md)
+- [37 — Static Analysis & Code Quality](sys-arch/37-forgeyard-static-analysis-code-quality-security-findings-system-architecture.md)
+- [48 — Failure Diagnosis & Root Cause Bisect](sys-arch/48-forgeyard-failure-diagnosis-debugging-reproduction-bisect-root-cause-system-architecture.md)
+- [50 — Reliability SLOs & Error Budgets](sys-arch/50-forgeyard-reliability-slo-error-budget-availability-resilience-governance-system-architecture.md)
+- [56 — Ephemeral Test DBs & Virtualization](sys-arch/56-forgeyard-test-data-fixtures-ephemeral-databases-service-virtualization-system-architecture.md)
+- [61 — Incident Management & Postmortems](sys-arch/61-forgeyard-incident-management-oncall-escalation-response-postmortem-system-architecture.md)
+
+# Part VIII: API, UI, DevEx & Service Portal
+- [18 — Axum API Gateway Architecture](sys-arch/18-forgeyard-api-axum-system-architecture.md)
+- [19 — Dioxus UI / GUI Web & Desktop](sys-arch/19-forgeyard-dioxus-ui-gui-system-architecture.md)
+- [35 — Developer Experience & Workstation CLI](sys-arch/35-forgeyard-developer-experience-local-dev-cli-reproducible-workstation-system-architecture.md)
+- [42 — Workflow Templates & Golden Paths](sys-arch/42-forgeyard-workflow-templates-reusable-pipelines-golden-paths-system-architecture.md)
+- [49 — Service Catalog & Developer Portal](sys-arch/49-forgeyard-service-catalog-component-ownership-environment-inventory-developer-portal-system-architecture.md)
+- [57 — API / ABI Compatibility & Evolution](sys-arch/57-forgeyard-api-abi-schema-protocol-compatibility-contract-evolution-system-architecture.md)
+- [64 — Cloud Workspaces & Remote Dev](sys-arch/64-forgeyard-remote-development-environments-cloud-workspaces-developer-workspace-orchestration-system-architecture.md)
+
+# Part IX: Distributed Coordination, Federation & Operations
+- [21 — SCM Provider Integrations](sys-arch/21-forgeyard-scm-provider-integrations-system-architecture.md)
+- [22 — High Availability & Raft Consensus](sys-arch/22-forgeyard-ha-coordination-raft-system-architecture.md)
+- [23 — RBE Interoperability Protocol](sys-arch/23-forgeyard-rbe-interop-system-architecture.md)
+- [24 — Plugin & Extension Architecture](sys-arch/24-forgeyard-plugin-extension-system-architecture.md)
+- [25 — Disaster Recovery & Online Upgrades](sys-arch/25-forgeyard-operations-backup-upgrade-dr-system-architecture.md)
+- [26 — Self-Hosting & Air-Gapped Releases](sys-arch/26-forgeyard-self-hosting-bootstrap-release-system-architecture.md)
+- [29 — Notifications & Human Approvals](sys-arch/29-forgeyard-notifications-alerting-human-workflow-system-architecture.md)
+- [30 — Entitlements & Licensing Governance](sys-arch/30-forgeyard-entitlements-licensing-subscription-commercial-access-system-architecture.md)
+- [34 — Monorepo Dependency Graphs & Impact](sys-arch/34-forgeyard-monorepo-dependency-graph-affected-incremental-execution-system-architecture.md)
+- [36 — Package Registry Mirroring](sys-arch/36-forgeyard-dependency-package-registry-artifact-mirror-source-governance-system-architecture.md)
+- [39 — Configuration & Feature Flags](sys-arch/39-forgeyard-configuration-feature-flags-runtime-settings-governance-system-architecture.md)
+- [45 — FinOps & Cost Accounting](sys-arch/45-forgeyard-cost-accounting-finops-chargeback-showback-resource-economics-system-architecture.md)
+- [47 — CI/CD Migration & Interoperability](sys-arch/47-forgeyard-cicd-migration-import-compatibility-legacy-interoperability-system-architecture.md)
+- [51 — Multi-Region Federation & Edge](sys-arch/51-forgeyard-multi-region-federation-edge-disconnected-cross-site-replication-system-architecture.md)
+- [53 — Infrastructure as Code & Drift](sys-arch/53-forgeyard-infrastructure-as-code-environment-provisioning-preview-drift-system-architecture.md)
+- [54 — Merge Queue & Speculative Testing](sys-arch/54-forgeyard-merge-queue-speculative-integration-batch-validation-protected-target-system-architecture.md)
+- [55 — AI-Assisted CI Optimization](sys-arch/55-forgeyard-ai-assisted-ci-optimization-engineering-copilot-autonomous-recommendation-governance-system-architecture.md)
+- [65 — Build Graph Replay & Time Travel](sys-arch/65-forgeyard-build-graph-replay-historical-reproducibility-time-travel-ci-evidence-reconstruction-system-architecture.md)
+- [66 — Change Risk Assessment](sys-arch/66-forgeyard-change-risk-assessment-preflight-simulation-policy-preview-what-if-analysis-system-architecture.md)
+- [68 — Configuration Drift Convergence](sys-arch/68-forgeyard-configuration-drift-desired-state-convergence-runtime-reconciliation-environment-consistency-system-architecture.md)
+- [70 — Dependency Update Automation](sys-arch/70-forgeyard-dependency-update-automation-version-maintenance-vulnerability-remediation-upgrade-campaign-system-architecture.md)
+
+# Part X: Ecosystems & Language Toolchains
+- [Assembly & Native Object Toolchain](sys-arch/forgeyard-assembly-native-architecture.md)
+- [C / C++ Toolchain Architecture](sys-arch/forgeyard-c-cpp-system-architecture.md)
+- [Dart + Flutter Toolchain Architecture](sys-arch/forgeyard-dart-flutter-system-architecture.md)
+- [Go Toolchain Architecture](sys-arch/forgeyard-go-system-architecture.md)
+- [Java + Kotlin JVM Toolchain Architecture](sys-arch/forgeyard-java-kotlin-jvm-system-architecture.md)
+- [JavaScript / TypeScript Toolchain Architecture](sys-arch/forgeyard-javascript-typescript-system-architecture.md)
+- [Python Toolchain Architecture](sys-arch/forgeyard-python-system-architecture.md)
+- [Rust Toolchain Architecture](sys-arch/forgeyard-rust-system-architecture.md)
+- [Swift Toolchain Architecture](sys-arch/forgeyard-swift-system-architecture.md)
+
+# Part XI: Architecture Guides & Concepts
+- [Complete System Architecture](docs/architecture/complete-system.md)
+- [Workspace Monorepo Layout](docs/architecture/workspace-structure.md)
+- [Storage Architecture Guide](docs/architecture/storage.md)
+- [CAS Subsystem Guide](docs/architecture/cas.md)
+- [Scheduler Subsystem Guide](docs/architecture/scheduler.md)
+- [Runner Subsystem Guide](docs/architecture/runner.md)
+- [Sandbox Subsystem Guide](docs/architecture/sandbox.md)
+- [Internal Protocol Guide](docs/architecture/protocol.md)
+- [Deployment Subsystem Guide](docs/architecture/deployment.md)
+- [Release Subsystem Guide](docs/architecture/release.md)
+- [Observability Subsystem Guide](docs/architecture/observability.md)
+- [Security Subsystem Guide](docs/architecture/security.md)
+- [UI Architecture Guide](docs/architecture/ui.md)
+- [Hermetic Packaging Guide](docs/architecture/hermetic-functional-packaging.md)
+- [VCS Neutrality Guide](docs/architecture/vcs-neutral.md)
+- [Change Proposals Subsystem Guide](docs/architecture/change-proposal.md)
+
+# Part XII: Version Control System (VCS) Integrations
+- [VCS Model & Abstraction](docs/vcs/model.md)
+- [Git Integration](docs/vcs/git.md)
+- [Jujutsu Integration](docs/vcs/jujutsu.md)
+- [Mercurial Integration](docs/vcs/mercurial.md)
+- [Pijul Integration](docs/vcs/pijul.md)
+- [Darcs Integration](docs/vcs/darcs.md)
+- [Fossil Integration](docs/vcs/fossil.md)
+- [Breezy Integration](docs/vcs/breezy.md)
+- [Snapshots & Content Hashes](docs/vcs/snapshots.md)
+- [VCS Provenance & Attestation](docs/vcs/provenance.md)
+- [VCS Migration Tooling](docs/vcs/migration.md)
+
+# Part XIII: Change Proposals & Review Process
+- [Change Proposals Overview](docs/change-proposals/overview.md)
+- [Code Review Architecture](docs/change-proposals/review.md)
+- [Automated Checks & Gates](docs/change-proposals/checks.md)
+- [Approval Governance](docs/change-proposals/approvals.md)
+- [Code Ownership & Routing](docs/change-proposals/ownership.md)
+- [Policy Verification](docs/change-proposals/policy.md)
+- [Security Evaluation](docs/change-proposals/security.md)
+- [Integration Candidates](docs/change-proposals/integration-candidates.md)
+- [Integration Queue Engine](docs/change-proposals/integration-queue.md)
+- [Provider Synchronization](docs/change-proposals/provider-sync.md)
