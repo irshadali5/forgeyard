@@ -22,12 +22,16 @@ mkdir -p "${SRC_DIR}/sys-arch"
 mkdir -p "${SRC_DIR}/docs"
 
 # Copy sys-arch files
-echo "Synchronizing system architecture files to src/sys-arch/..."
-cp -r "${SYS_ARCH_DIR}/"* "${SRC_DIR}/sys-arch/"
+if [ -d "${SYS_ARCH_DIR}" ] && [ "$(ls -A "${SYS_ARCH_DIR}" 2>/dev/null)" ]; then
+  echo "Synchronizing system architecture files to src/sys-arch/..."
+  cp -r "${SYS_ARCH_DIR}/"* "${SRC_DIR}/sys-arch/"
+fi
 
 # Copy general docs
-echo "Synchronizing subsystem guides to src/docs/..."
-cp -r "${DOCS_DIR}/"* "${SRC_DIR}/docs/"
+if [ -d "${DOCS_DIR}" ] && [ "$(ls -A "${DOCS_DIR}" 2>/dev/null)" ]; then
+  echo "Synchronizing subsystem guides to src/docs/..."
+  cp -r "${DOCS_DIR}/"* "${SRC_DIR}/docs/"
+fi
 
 # Prepare src/README.md from wiki/Home.md if available
 if [ -f "${WIKI_DIR}/Home.md" ]; then
